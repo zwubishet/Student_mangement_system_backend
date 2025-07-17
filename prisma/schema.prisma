@@ -2,17 +2,56 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Student {
-  id           String   @id @default(uuid())
-  studentId    String   @unique
-  fullName     String
-  passwordHash String
+  id             String        @id @default(uuid())
+  studentId      String        @unique
+  fullName       String
+  passwordHash   String
+  gradeSectionId String?
+  gradeSection   GradeSection? @relation(fields: [gradeSectionId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model GradeSection {
+  id            String         @id @default(uuid()) // Unique ID for each grade-section
+  grade         String // e.g., "Grade 1", "Grade 2"
+  section       String // e.g., "A", "B"
+  students      Student[] // One GradeSection has many students
+  schedules     Schedule[] // One GradeSection has many schedules (JSON schedules)
+  announcements Announcement[]
+
+  @@unique([grade, section]) // Ensure no duplicate grade-section combos
+}
+
+model Schedule {
+  id             String       @id @default(uuid())
+  weekSchedule   Json
+  gradeSection   GradeSection @relation(fields: [gradeSectionId], references: [id])
+  gradeSectionId String       @unique
+}
+
+model Resource {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  resourceType String // video, link, pdf, etc.
+  link         String? // Can store a URL for video, link
+  file         String? // Path to uploaded file
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+}
+
+model Announcement {
+  id        String        @id @default(uuid())
+  title     String
+  message   String
+  createdAt DateTime      @default(now())
+  isPublic  Boolean       @default(true) // true = for all, false = for grade only
+  gradeId   String? // null if public
+  grade     GradeSection? @relation(fields: [gradeId], references: [id])
 }

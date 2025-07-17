@@ -33,10 +33,11 @@ const login = async (req, res)=>{
             return res.status(401).json({message: "Invalid password"});
         }
         const jwtToken = jwt.sign({
+            id: student.id,
             studentId: student.studentId,
             fullName: student.fullName
         }, process.env.JWT_SECRET, {
-            expiresIn: '1h'
+            expiresIn: '30s'
         })
 
         return res.status(200).json({
