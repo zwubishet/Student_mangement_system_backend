@@ -16,6 +16,7 @@ model Student {
   gradeSection   GradeSection?  @relation(fields: [gradeSectionId], references: [id])
   grades         StudentGrade[]
   communityPosts   CommunityPost[]
+  comments        Comment[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -94,6 +95,18 @@ model CommunityPost {
   image     String?  // optional: can store image URL or path
   document  String?  // optional: document URL/path (e.g., PDF)
   createdAt DateTime @default(now())
+  comments   Comment[]
   student   Student  @relation(fields: [studentId], references: [id])
   studentId String
 }
+
+model Comment {
+  id            String   @id @default(uuid())
+  content       String
+  createdAt     DateTime @default(now())
+  post          CommunityPost @relation(fields: [postId], references: [id])
+  postId        String
+  student       Student @relation(fields: [studentId], references: [id])
+  studentId     String
+}
+

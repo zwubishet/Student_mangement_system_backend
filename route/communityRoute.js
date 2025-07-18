@@ -9,7 +9,9 @@ CommunityRoutes.post('/post', AuthenticationMiddleware, communityRoute.Community
 CommunityRoutes.get('/getPost/:type', communityRoute.FilterCommunityPost);
 CommunityRoutes.get('/getPost', communityRoute.GetCommunityPost);
 CommunityRoutes.get('/mine', AuthenticationMiddleware, communityRoute.MyPost);
-CommunityRoutes.get('/update/:postId', AuthenticationMiddleware, communityRoute.UpdatePost);
-CommunityRoutes.get('/delete/:postId', AuthenticationMiddleware, communityRoute.DeletePost);
-
+CommunityRoutes.put('/update/:postId', AuthenticationMiddleware, communityRoute.UpdatePost);
+CommunityRoutes.delete('/delete/:postId', AuthenticationMiddleware, communityRoute.DeletePost);
+CommunityRoutes.post('/comment', AuthenticationMiddleware, communityRoute.CommentPost);
+CommunityRoutes.get('/comment/:postId', communityRoute.GetComment);
+CommunityRoutes.delete('/comment/:postId', communityRoute.DeleteComment);
 export default CommunityRoutes;
