@@ -8,20 +8,49 @@ datasource db {
 }
 
 model Student {
-  id             String        @id @default(uuid())
-  studentId      String        @unique
+  id             String         @id @default(uuid())
+  studentId      String         @unique
   fullName       String
   passwordHash   String
   gradeSectionId String?
-  gradeSection   GradeSection? @relation(fields: [gradeSectionId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  gradeSection   GradeSection?  @relation(fields: [gradeSectionId], references: [id])
+  grades         StudentGrade[]
+  communityPosts   CommunityPost[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
+
+model StudentGrade {
+  id              String         @id @default(uuid())
+  student         Student        @relation(fields: [studentId], references: [id])
+  studentId       String
+  year            Int
+  semester        Int
+  totalScore      Float
+  averageScore    Float
+  rank            Int
+  subjectResults  SubjectResult[]
+  createdAt       DateTime       @default(now())
+}
+
+model SubjectResult {
+  id            String       @id @default(uuid())
+  studentGrade  StudentGrade @relation(fields: [studentGradeId], references: [id])
+  studentGradeId String
+  subjectName   String
+  test1         Float
+  test2         Float
+  test3         Float
+  assignment    Float
+  finalExam     Float
+  total         Float
+}
+
 
 model GradeSection {
   id            String         @id @default(uuid()) // Unique ID for each grade-section
-  grade         String // e.g., "Grade 1", "Grade 2"
-  section       String // e.g., "A", "B"
+  grade         String 
+  section       String 
   students      Student[] // One GradeSection has many students
   schedules     Schedule[] // One GradeSection has many schedules (JSON schedules)
   announcements Announcement[]
@@ -54,4 +83,17 @@ model Announcement {
   isPublic  Boolean       @default(true) // true = for all, false = for grade only
   gradeId   String? // null if public
   grade     GradeSection? @relation(fields: [gradeId], references: [id])
+}
+
+
+model CommunityPost {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  type      String   // e.g. "General", "Grade 7", "Grade 6"
+  image     String?  // optional: can store image URL or path
+  document  String?  // optional: document URL/path (e.g., PDF)
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId String
 }

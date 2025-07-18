@@ -37,7 +37,7 @@ const login = async (req, res)=>{
             studentId: student.studentId,
             fullName: student.fullName
         }, process.env.JWT_SECRET, {
-            expiresIn: '30s'
+            expiresIn: '30m'
         })
 
         return res.status(200).json({
