@@ -1,11 +1,8 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../prisma/client.js";
 
-const prisma = new PrismaClient();
-
-// POST community post
 const CommunityPost = async (req, res) => {
   const { title, content, type, image, document } = req.body;
-  const studentId = req.user.studentId;
+  const studentId = req.user.userId;
 
   try {
     if (!title || !content || !type || !studentId) {
@@ -22,7 +19,6 @@ const CommunityPost = async (req, res) => {
 
     const post = await prisma.communityPost.create({
       data: {
-        id,
         title,
         content,
         type,
@@ -43,22 +39,29 @@ const CommunityPost = async (req, res) => {
 const GetCommunityPost = async (req, res) => {
   try {
     const posts = await prisma.communityPost.findMany({
-        include: {
-    comments: {
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        student: {
+      include: {
+        comments: {
           select: {
-            fullName: true,
-            studentId: true
+            id: true,
+            content: true,
+            createdAt: true,
+            student: 
+             {
+              select: {
+                user: true
+                //  {
+                //   select: {
+                //     fullName: true,
+                //     studentId: true,
+                //   }
+                // }
+              }
+            }
           }
         }
       }
-    }
-  }
     });
+
     res.json(posts);
   } catch (err) {
     console.error("Error fetching community posts:", err);
@@ -93,11 +96,11 @@ const FilterCommunityPost = async (req, res) => {
 
 const MyPost = async (req, res) => {
   try {
-    const { studentId } = req.user;
+    const studentId = req.user.userId;
 
     const student = await prisma.student.findUnique({
       where: { studentId },
-      select: { id: true, fullName: true }
+      select: { userId: true, user: true }
     });
 
     if (!student) {
@@ -106,7 +109,7 @@ const MyPost = async (req, res) => {
 
     const myPost = await prisma.communityPost.findMany({
       where: {
-        studentId: student.id
+        studentId: student.userId
       },
       select: {
         title: true,
@@ -138,7 +141,7 @@ const MyPost = async (req, res) => {
 const UpdatePost = async (req, res) => {
   try {
     const postId = req.params.postId;
-    const studentId = req.user.studentId;
+   const studentId = req.user.userId;
     const { title, content, type, image, document } = req.body;
 
     if (!req.body) {
@@ -182,7 +185,7 @@ const UpdatePost = async (req, res) => {
 const DeletePost = async (req, res) => {
   try {
     const postId = req.params.postId;
-    const studentId = req.user.studentId;
+    const studentId = req.user.userId;
 
     const post = await prisma.communityPost.findUnique({
       where: { id: postId },
@@ -215,7 +218,8 @@ const DeletePost = async (req, res) => {
 const CommentPost = async (req, res) => {
   try {
     const { postId, content } = req.body;
-    const studentId = req.user.studentId;
+    const studentId = req.user.userId;
+
 
     if (!postId || !content || !studentId) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -239,7 +243,7 @@ const CommentPost = async (req, res) => {
       data: {
         content,
         postId,
-        studentId: studentExists.id,
+        studentId: studentExists.userId,
       },
     });
 
@@ -266,8 +270,7 @@ const GetComment = async (req, res) => {
             createdAt: true,
             student: {
               select: {
-                fullName: true,
-                studentId: true
+                user: true
               }
             }
           }
@@ -288,7 +291,7 @@ const GetComment = async (req, res) => {
 
 const DeleteComment = async (req, res) => {
   const commentId = req.params.commentId;
-  const studentId = req.user.studentId;
+  const studentId = req.user.userId;
 
   try {
     const comment = await prisma.comment.findUnique({

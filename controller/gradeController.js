@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from '../prisma/client.js'
+import * as GradeService from '../services/gradeService.js'
 
 const StudentGrade = async (req, res) => {
-  const id = req.user.id;
+  const id = req.user.userId;
   console.log("Logged-in user ID:", req.user);
 
 
@@ -32,10 +31,19 @@ const StudentGrade = async (req, res) => {
         },
         student: {
           select: {
-            fullName: true,
-            studentId: true
+            user: true
           }
-        }
+        },
+        student: {
+  select: {
+    user: {
+      select: {
+        fullName: true
+      }
+    }
+  }
+}
+
       }
     });
 
@@ -52,7 +60,7 @@ const StudentGrade = async (req, res) => {
 
 const SubjectResult = async (req, res) => {
     const subject = req.params.subject;
-    const id = req.user.id;
+    const id = req.user.userId;
   console.log("Logged-in user ID:", req.user);
 
 
@@ -92,7 +100,7 @@ const SubjectResult = async (req, res) => {
 const YearlyStudentResult = async (req, res) => {
     const year = parseInt(req.params.year);         // 🔧 Convert to Int
     const semester = parseInt(req.params.semester);
-    const id = req.user.id;
+    const id = req.user.userId;
   console.log("Logged-in user ID:", req.user);
 
 

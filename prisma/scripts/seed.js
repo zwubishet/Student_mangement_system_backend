@@ -115,21 +115,61 @@
 // const prisma = new PrismaClient();
 
 // async function main() {
-//   await prisma.resource.create({
+  // await prisma.resource.create({
+  //   data: {
+  //     title: 'Flutter Documentation',
+  //     description: 'Official Flutter documentation for learning.',
+  //     resourceType: 'link',
+  //     link: 'https://flutter.dev/docs',
+  //   },
+  // });
+
+  // await prisma.resource.create({
+  //   data: {
+  //     title: 'Introduction to Node.js',
+  //     description: 'A PDF guide to get started with Node.js.',
+  //     resourceType: 'pdf',
+  //     file: 'path/to/file.pdf',
+  //   },
+  // });
+
+
+//   const passwordHash = await bcrypt.hash("123456", 10);
+
+
+//   const teacherUser = await prisma.user.create({
 //     data: {
-//       title: 'Flutter Documentation',
-//       description: 'Official Flutter documentation for learning.',
-//       resourceType: 'link',
-//       link: 'https://flutter.dev/docs',
+//       fullName: "Mr. Solomon Bekele",
+//       teacherId: "TECH01",
+//       password: passwordHash,
+//       role: "TEACHER",
 //     },
 //   });
 
-//   await prisma.resource.create({
+//   const directorUser = await prisma.user.create({
 //     data: {
-//       title: 'Introduction to Node.js',
-//       description: 'A PDF guide to get started with Node.js.',
-//       resourceType: 'pdf',
-//       file: 'path/to/file.pdf',
+//       fullName: "Mrs. Eden Fikre",
+//       directorId: "DIR01",
+//       password: passwordHash,
+//       role: "DIRECTOR",
+//     },
+//   });
+
+//   // Create Teacher
+//   await prisma.teacher.create({
+//     data: {
+//       userId: teacherUser.id,
+//       teacherId: teacherUser.teacherId,
+//       subject: "Mathematics",
+//     },
+//   });
+
+//   // Create Director
+//   await prisma.director.create({
+//     data: {
+//       userId: directorUser.id,
+//       directorId: directorUser.directorId,
+//       office: "Main Office",
 //     },
 //   });
 
@@ -391,54 +431,363 @@
 
 
 
-import { PrismaClient } from "@prisma/client";
-import bcrypt from 'bcrypt'
+// import { PrismaClient } from "@prisma/client";
+// import bcrypt from 'bcrypt'
+// const prisma = new PrismaClient();
+
+// async function main() {
+//     const password = "pass1234";
+//     const passwordHash = await bcrypt.hash(password, 10);
+//   // Create 1 student to associate with community posts
+//     const student = await prisma.student.create({
+//     data: {
+//       studentId: "STU12",
+//       fullName: "Wubishet",
+//       passwordHash: passwordHash, // Replace with actual hash if needed
+//     },
+//   });
+
+//   // Create a few community posts
+//   await prisma.communityPost.createMany({
+//     data: [
+//       {
+//         title: "Welcome to Grade 7",
+//         content: "This is a general intro for new Grade 7 students.",
+//         type: "Grade 7",
+//         image: "uploads/welcome.jpg",
+//         document: "uploads/intro.pdf",
+//         studentId: student.id,
+//       },
+//       {
+//         title: "School Clean-Up Day",
+//         content: "All students are invited to help clean the school on Friday.",
+//         type: "General",
+//         image: "uploads/cleanup.png",
+//         studentId: student.id,
+//       },
+//       {
+//         title: "Math Quiz Reminder",
+//         content: "Don’t forget to prepare for the quiz on Monday!",
+//         type: "Grade 6",
+//         studentId: student.id,
+//       }
+//     ]
+//   });
+
+//   console.log("🌱 Seed complete");
+// }
+
+// main()
+//   .catch(e => {
+//     console.error(e);
+//     process.exit(1);
+//   })
+//   .finally(async () => {
+//     await prisma.$disconnect();
+//   });
+
+
+
+// import { PrismaClient } from '@prisma/client';
+// import bcrypt from 'bcrypt';
+
+// const prisma = new PrismaClient();
+
+// async function main() {
+//   console.log("Seeding database...");
+
+//   // // Clear all data (optional for dev)
+//   // await prisma.comment.deleteMany();
+//   // await prisma.communityPost.deleteMany();
+//   // await prisma.announcement.deleteMany();
+//   // await prisma.schedule.deleteMany();
+//   // await prisma.gradeSection.deleteMany();
+//   // await prisma.subjectResult.deleteMany();
+//   // await prisma.studentGrade.deleteMany();
+//   // await prisma.student.deleteMany();
+//   // await prisma.teacher.deleteMany();
+//   // await prisma.director.deleteMany();
+//   // await prisma.user.deleteMany();
+
+//   // Create Users (with roles)
+//   const passwordHash = await bcrypt.hash("123456", 10);
+
+//   const studentUser = await prisma.user.create({
+//     data: {
+//       fullName: "Liya Alemu",
+//       password: passwordHash,
+//       role: "STUDENT",
+//     },
+//   });
+
+//   const teacherUser = await prisma.user.create({
+//     data: {
+//       fullName: "Mr. Solomon Bekele",
+//       password: passwordHash,
+//       role: "TEACHER",
+//     },
+//   });
+
+//   const directorUser = await prisma.user.create({
+//     data: {
+//       fullName: "Mrs. Eden Fikre",
+//       password: passwordHash,
+//       role: "DIRECTOR",
+//     },
+//   });
+
+//   // Create Teacher
+//   await prisma.teacher.create({
+//     data: {
+//       userId: teacherUser.id,
+//       subject: "Mathematics",
+//     },
+//   });
+
+//   // Create Director
+//   await prisma.director.create({
+//     data: {
+//       userId: directorUser.id,
+//       office: "Main Office",
+//     },
+//   });
+
+//   // Grade Section
+//   const gradeSection = await prisma.gradeSection.create({
+//     data: {
+//       grade: "7",
+//       section: "A",
+//     },
+//   });
+
+//   // Schedule
+//   await prisma.schedule.create({
+//     data: {
+//       gradeSectionId: gradeSection.id,
+//       weekSchedule: {
+//         Monday: ["Math", "Science"],
+//         Tuesday: ["English", "Art"],
+//       },
+//     },
+//   });
+
+//   // Student
+//   const student = await prisma.student.create({
+//     data: {
+//       userId: studentUser.id,
+//       studentId: "STD123",
+//       gradeSectionId: gradeSection.id,
+//     },
+//   });
+
+//   // Grades + Subject Results
+//   const gradeRecord = await prisma.studentGrade.create({
+//     data: {
+//       studentId: student.userId,
+//       year: 2025,
+//       semester: 1,
+//       totalScore: 420,
+//       averageScore: 84,
+//       rank: 3,
+//       subjectResults: {
+//         create: [
+//           {
+//             subjectName: "Math",
+//             test1: 15,
+//             test2: 18,
+//             test3: 17,
+//             assignment: 20,
+//             finalExam: 30,
+//             total: 100,
+//           },
+//           {
+//             subjectName: "English",
+//             test1: 14,
+//             test2: 16,
+//             test3: 15,
+//             assignment: 18,
+//             finalExam: 27,
+//             total: 90,
+//           },
+//         ],
+//       },
+//     },
+//   });
+
+//   // Announcement (Public + Private)
+//   await prisma.announcement.createMany({
+//     data: [
+//       {
+//         title: "School Reopening",
+//         message: "School will reopen on September 1.",
+//         isPublic: true,
+//       },
+//       {
+//         title: "Grade 7A Exam Schedule",
+//         message: "Your midterm exams start next week.",
+//         isPublic: false,
+//         gradeId: gradeSection.id,
+//       },
+//     ],
+//   });
+
+//   // Community Post
+//   const post = await prisma.communityPost.create({
+//     data: {
+//       title: "Need Help With Math",
+//       content: "Can anyone help me with Algebra homework?",
+//       type: "General",
+//       studentId: student.userId,
+//     },
+//   });
+
+//   // Comment
+//   await prisma.comment.create({
+//     data: {
+//       content: "Sure, I can help you after class.",
+//       postId: post.id,
+//       studentId: student.userId,
+//     },
+//   });
+
+//   console.log("✅ Seeding completed!");
+// }
+
+// main()
+//   .catch((e) => {
+//     console.error("❌ Error seeding data:", e);
+//     process.exit(1);
+//   })
+//   .finally(async () => {
+//     await prisma.$disconnect();
+//   });
+
+
+
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-    const password = "pass1234";
-    const passwordHash = await bcrypt.hash(password, 10);
-  // Create 1 student to associate with community posts
-    const student = await prisma.student.create({
+  // Create Grade Sections
+  const passwordHash = await bcrypt.hash("123456", 10);
+ // Grade 7A
+const grade7A = await prisma.gradeSection.upsert({
+  where: {
+    grade_section_unique: {
+      grade: '7',
+      section: 'A',
+    }
+  },
+  update: {}, // do nothing if exists
+  create: {
+    grade: '7',
+    section: 'A'
+  }
+});
+
+// Grade 8B
+const grade8B = await prisma.gradeSection.upsert({
+  where: {
+    grade_section_unique: {
+      grade: '8',
+      section: 'B',
+    }
+  },
+  update: {},
+  create: {
+    grade: '8',
+    section: 'B'
+  }
+});
+
+  // Create a Student User
+  const studentUser = await prisma.user.create({
     data: {
-      studentId: "STU12",
-      fullName: "Wubishet",
-      passwordHash: passwordHash, // Replace with actual hash if needed
-    },
-  });
-
-  // Create a few community posts
-  await prisma.communityPost.createMany({
-    data: [
-      {
-        title: "Welcome to Grade 7",
-        content: "This is a general intro for new Grade 7 students.",
-        type: "Grade 7",
-        image: "uploads/welcome.jpg",
-        document: "uploads/intro.pdf",
-        studentId: student.id,
-      },
-      {
-        title: "School Clean-Up Day",
-        content: "All students are invited to help clean the school on Friday.",
-        type: "General",
-        image: "uploads/cleanup.png",
-        studentId: student.id,
-      },
-      {
-        title: "Math Quiz Reminder",
-        content: "Don’t forget to prepare for the quiz on Monday!",
-        type: "Grade 6",
-        studentId: student.id,
+      fullName: 'Alice Student',
+      password: passwordHash, // Use hashed value in real cases
+      role: 'STUDENT',
+      student: {
+        create: {
+          studentId: 'STU1001',
+          gradeSectionId: grade7A.id,
+        }
       }
-    ]
+    }
   });
 
-  console.log("🌱 Seed complete");
+  // Create a Teacher User
+  const teacherUser = await prisma.user.create({
+    data: {
+      fullName: 'Bob Teacher',
+      password: passwordHash,
+      role: 'TEACHER',
+      teacher: {
+        create: {
+          teacherId: 'TEA9001',
+          subject: 'Mathematics',
+        }
+      }
+    }
+  });
+
+  // Create a Director User
+  const directorUser = await prisma.user.create({
+    data: {
+      fullName: 'Clara Director',
+      password: passwordHash,
+      role: 'DIRECTOR',
+      director: {
+        create: {
+          directorId: 'DIR001',
+          office: 'Main Office',
+        }
+      }
+    }
+  });
+
+  // Create Announcement for Grade 7
+  await prisma.announcement.create({
+    data: {
+      title: 'Grade 7 Exam Info',
+      message: 'Final exams start next week!',
+      isPublic: false,
+      gradeId: grade7A.id,
+    }
+  });
+
+  // Create Public Announcement
+  await prisma.announcement.create({
+    data: {
+      title: 'Welcome to School!',
+      message: 'All students must attend orientation on Monday.',
+      isPublic: true
+    }
+  });
+
+  // Create Community Post and Comment
+  const post = await prisma.communityPost.create({
+    data: {
+      title: 'Study Group',
+      content: 'Anyone wants to form a study group for math?',
+      type: 'Grade 7',
+      studentId: studentUser.id,
+    }
+  });
+
+  await prisma.comment.create({
+    data: {
+      content: 'I am interested!',
+      postId: post.id,
+      studentId: studentUser.id,
+    }
+  });
+
+  console.log('✅ Seed completed.');
 }
 
 main()
-  .catch(e => {
+  .catch((e) => {
     console.error(e);
     process.exit(1);
   })

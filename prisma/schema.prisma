@@ -7,11 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  STUDENT
+  TEACHER
+  DIRECTOR
+}
+
+model User {
+  id         String   @id @default(cuid())
+  fullName   String
+  password   String
+  role       Role
+  refreshToken    RefreshToken[]
+  createdAt  DateTime @default(now())
+  student    Student?
+  teacher    Teacher?
+  director   Director?
+}
+
+
 model Student {
-  id             String         @id @default(uuid())
-  studentId      String         @unique
-  fullName       String
-  passwordHash   String
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id])
+  studentId  String   @unique
   gradeSectionId String?
   gradeSection   GradeSection?  @relation(fields: [gradeSectionId], references: [id])
   grades         StudentGrade[]
@@ -21,9 +39,34 @@ model Student {
   updatedAt      DateTime       @updatedAt
 }
 
+model RefreshToken {
+  id       String   @id @default(cuid())
+  token    String   @unique
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+
+model Teacher {
+  userId   String   @id
+  teacherId  String  @unique
+  user     User     @relation(fields: [userId], references: [id])
+  subject  String
+  // ...more teacher-specific fields
+}
+
+model Director {
+  userId   String   @id
+  directorId  String  @unique
+  user     User     @relation(fields: [userId], references: [id])
+  office   String
+  // ...more director-specific fields
+}
+
 model StudentGrade {
   id              String         @id @default(uuid())
-  student         Student        @relation(fields: [studentId], references: [id])
+  student         Student        @relation(fields: [studentId], references: [userId])
   studentId       String
   year            Int
   semester        Int
@@ -56,7 +99,7 @@ model GradeSection {
   schedules     Schedule[] // One GradeSection has many schedules (JSON schedules)
   announcements Announcement[]
 
-  @@unique([grade, section]) // Ensure no duplicate grade-section combos
+  @@unique([grade, section], name: "grade_section_unique") // Ensure no duplicate grade-section combos
 }
 
 model Schedule {
@@ -96,7 +139,7 @@ model CommunityPost {
   document  String?  // optional: document URL/path (e.g., PDF)
   createdAt DateTime @default(now())
   comments   Comment[]
-  student   Student  @relation(fields: [studentId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [userId])
   studentId String
 }
 
@@ -106,7 +149,7 @@ model Comment {
   createdAt     DateTime @default(now())
   post          CommunityPost @relation(fields: [postId], references: [id])
   postId        String
-  student       Student @relation(fields: [studentId], references: [id])
+  student       Student @relation(fields: [studentId], references: [userId])
   studentId     String
 }
 

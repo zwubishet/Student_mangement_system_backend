@@ -5,7 +5,7 @@ import ResourceRoute from '../route/ResourceRoute.js';
 import AnnouncementRoutes from '../route/AnnouncementRoute.js'
 import GradeRoutes from '../route/GradingRoute.js'
 import CommunityRoutes from '../route/communityRoute.js'
-
+import ClassStudentRoutes from '../route/teacher/classStudents.js';
 const app = express();
 
 app.use(express.json());
@@ -16,4 +16,5 @@ app.use('/api/resource', ResourceRoute);
 app.use('/api/announcement', AnnouncementRoutes);
 app.use('/api/grade', GradeRoutes)
 app.use('/api/community', CommunityRoutes)
+app.use('/api/class', ClassStudentRoutes)
 export default app;

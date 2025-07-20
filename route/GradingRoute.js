@@ -4,7 +4,6 @@ import AuthenticationMiddleware from '../middleware/AuthenticationMiddleware.js'
 
 const GradeRoutes = express.Router();
 
-// Clear prefixes for clarity
 GradeRoutes.get('/:year/:semester', AuthenticationMiddleware, GradeRoute.YearlyStudentResult);
 GradeRoutes.get('/:subject', AuthenticationMiddleware, GradeRoute.SubjectResult);
 GradeRoutes.get('/', AuthenticationMiddleware, GradeRoute.StudentGrade);

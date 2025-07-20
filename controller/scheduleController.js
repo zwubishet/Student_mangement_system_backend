@@ -3,13 +3,13 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const Schedules = async (req, res) =>{
-    const userId = req.user.id;
+    const userId = req.user.userId;
     console.log("Decoded user from token:", req.user);
 
 
     try{
         const studentWithSchedule = await prisma.student.findUnique({
-        where: {id: userId},
+        where: {userId: userId},
         include: {
             gradeSection: {
                 include: {
@@ -22,7 +22,7 @@ const Schedules = async (req, res) =>{
     )
 
     if(!studentWithSchedule){
-        res.status(404).json(
+       return res.status(404).json(
             {
                 message: "No schedule found"
             }
@@ -41,13 +41,13 @@ const Schedules = async (req, res) =>{
 }
 
 const todaySchedules = async (req, res) =>{
-    const userId = req.user.id;
+    const userId = req.user.userId;
     console.log("Decoded user from token:", req.user);
     const toDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
     try{
         const studentWithSchedule = await prisma.student.findUnique({
-        where: {id: userId},
+        where: {userId: userId},
         include: {
             gradeSection: {
                 include: {
@@ -55,39 +55,35 @@ const todaySchedules = async (req, res) =>{
                 }
             }
         }
-    }
-        
-    )
+        });
 
-    if(!studentWithSchedule){
-        res.status(404).json(
+        if(!studentWithSchedule){
+        return res.status(404).json(
             {
                 message: "No schedule found"
             }
         )
-    }
-    const todaySchedule = studentWithSchedule.gradeSection.schedules[0].weekSchedule[toDay]
-    if(!todaySchedule || todaySchedule.length == 0 ){
-        res.json({
+        }
+        const todaySchedule = studentWithSchedule.gradeSection.schedules[0].weekSchedule[toDay]
+        if(!todaySchedule || todaySchedule.length == 0 ){
+        return res.json({
             message: "the is no schedule $toDay",
             day: toDay,
             schedule: todaySchedule
         })
-    }
+        }
 
-    res.json(
-       {
-         message: "succefully feach $toDay schedule",
+        res.json({
+         message: `succefully feach ${toDay} schedule`,
             day: toDay,
             schedule: todaySchedule
-       }
-    );
+       });
 
     }catch(err){
-        console.error("Error fetching student profile:", err);
-    return res.status(401).json({
+        console.error("Error fetching class schedule:", err);
+       return res.status(401).json({
       message: "Unauthorized access!"
-    });
+       });
     }
 
 }
