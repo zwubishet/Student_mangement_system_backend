@@ -3,16 +3,24 @@ const prisma = new PrismaClient();
 
 async function clearSeedData() {
   try {
-    // 1. Delete SubjectResults first (child of StudentGrade)
+    console.log("🚮 Clearing seed data...");
+
+    await prisma.comment.deleteMany();
+    await prisma.communityPost.deleteMany();
     await prisma.subjectResult.deleteMany();
-
-    // 2. Delete StudentGrades (child of Student)
     await prisma.studentGrade.deleteMany();
-
-    // 3. Delete Students
+    await prisma.refreshToken.deleteMany();
     await prisma.student.deleteMany();
+    await prisma.teacher.deleteMany();
+    await prisma.director.deleteMany();
 
-    console.log("🧹 All seeded data has been deleted.");
+
+    await prisma.user.deleteMany();
+    await prisma.schedule.deleteMany();
+    await prisma.announcement.deleteMany();
+    await prisma.gradeSection.deleteMany();
+
+    console.log("✅ Seed data cleared successfully.");
   } catch (error) {
     console.error("❌ Error deleting seed data:", error);
   } finally {
