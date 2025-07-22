@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors'; // or const cors = require('cors');
 import AuthRoute from '../route/AuthinticationRoute.js';
 import ProfileRoute from '../route/profileViewRoute.js'
 import ResourceRoute from '../route/ResourceRoute.js';
@@ -10,8 +11,9 @@ import StudentResultRoutes from '../route/teacher/assignResultRoute.js';
 import GetDataRoutes from '../route/director/dataGetRoute.js';
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', AuthRoute);
 app.use('/api/user', ProfileRoute);

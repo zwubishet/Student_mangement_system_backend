@@ -7,6 +7,8 @@ import putData from '../../controller/director/putData.js';
 
 const GetDataRoutes = express.Router();
 GetDataRoutes.get("/teachers",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , getData.getTeachers)
+GetDataRoutes.put("/register-teacher",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , putData.registerTeacher)
+GetDataRoutes.delete("/delete-teacher",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , putData.deleteTeacher)
 GetDataRoutes.get("/students",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , getData.getStudents)
 GetDataRoutes.get("/classes",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , getData.getClasses)
 GetDataRoutes.get("/classes/:grade/:section",AuthenticationMiddleware, authorizeRoles("DIRECTOR") , getData.getSpecficClassesStudents)
