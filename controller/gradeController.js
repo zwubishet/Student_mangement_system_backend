@@ -1,11 +1,10 @@
 import prisma from '../prisma/client.js'
-import * as GradeService from '../services/gradeService.js'
+import * as GradeService from '../services/gradeService.js';
 
 const StudentGrade = async (req, res) => {
   const id = req.user.userId;
   console.log("Logged-in user ID:", req.user);
-
-
+  
   try {
     const studentGrade = await prisma.studentGrade.findMany({
       where: {
@@ -61,7 +60,7 @@ const StudentGrade = async (req, res) => {
 const SubjectResult = async (req, res) => {
     const subject = req.params.subject;
     const id = req.user.userId;
-  console.log("Logged-in user ID:", req.user);
+    console.log("Logged-in user ID:", req.user);
 
 
   try {
@@ -98,16 +97,26 @@ const SubjectResult = async (req, res) => {
 }
 
 const YearlyStudentResult = async (req, res) => {
-    const year = parseInt(req.params.year);         // 🔧 Convert to Int
+    const year = parseInt(req.params.year);
     const semester = parseInt(req.params.semester);
-    const id = req.user.userId;
-  console.log("Logged-in user ID:", req.user);
-
-
+    const studentId = req.user.studentId;
+    console.log("Logged-in user ID:", req.user);
+  
   try {
+    const student = await prisma.student.findFirst({
+          where: { studentId },
+          select: { userId: true }
+        });
+    
+        if (!student) {
+          return res.status(404).json({ error: "Student not found" });
+        }
+    
+        const userId = student.userId
+
     const yearlyResult = await prisma.studentGrade.findMany({
       where: {
-        studentId: id,
+        studentId: userId,
         year: year,
         semester: semester
       },
@@ -116,6 +125,7 @@ const YearlyStudentResult = async (req, res) => {
         averageScore: true,
         rank: true,
         createdAt: true,
+        subjectResults: true
       }
     });
 
