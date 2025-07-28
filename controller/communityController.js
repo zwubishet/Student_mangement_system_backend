@@ -39,7 +39,13 @@ const CommunityPost = async (req, res) => {
 const GetCommunityPost = async (req, res) => {
   try {
     const posts = await prisma.communityPost.findMany({
-      include: {
+      select: {
+        title: true,
+        content: true,
+        type: true,  // e.g. "General", "Grade 7", "Grade 6"
+        image: true,  // optional: can store image URL or path
+        document: true,
+        createdAt: true,
         comments: {
           select: {
             id: true,
@@ -49,12 +55,6 @@ const GetCommunityPost = async (req, res) => {
              {
               select: {
                 user: true
-                //  {
-                //   select: {
-                //     fullName: true,
-                //     studentId: true,
-                //   }
-                // }
               }
             }
           }
