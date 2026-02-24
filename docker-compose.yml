@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sms_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-sms_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  hasura:
+    image: hasura/graphql-engine:v2.26.0
+    ports:
+      - "8082:8080"
+    restart: unless-stopped
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+    depends_on:
+      - postgres
+
+  app:
+    build: .
+    ports:
+      - "3:3000"
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
+      - HASURA_GRAPHQL_ENDPOINT=http://hasura:8080/v1/graphql
+      - HASURA_ADMIN_SECRET=${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
+    depends_on:
+      - postgres
+      - hasura
+
+volumes:
+  pgdata:

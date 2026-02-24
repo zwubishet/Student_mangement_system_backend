@@ -1,0 +1,10 @@
+version: 3
+endpoint: http://localhost:8082
+admin_secret: supersecret
+metadata_directory: metadata
+migrations_directory: migrations
+
+# You can replace values above with environment variables in CI or local scripts.
+# Example (bash):
+# export HASURA_GRAPHQL_ADMIN_SECRET=supersecret
+# hasura --endpoint http://localhost:8080 --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET metadata export

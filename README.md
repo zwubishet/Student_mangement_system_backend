@@ -147,3 +147,32 @@ More routes coming soon as development continues.
 📬 [wubishetwudu1624@gmail.com](mailto:wubishetwudu1624@gmail.com)
 
 ---
+
+
+**Docker & Hasura**
+
+- **Run the full stack locally (Postgres + Hasura + App):** ensure you have Docker and Docker Compose installed, copy `.env.example` to `.env`, then:
+
+```bash
+docker-compose up --build
+```
+
+- **Hasura Console:** open `http://localhost:8080` and use the admin secret from your `.env` (`HASURA_GRAPHQL_ADMIN_SECRET`).
+
+- **Hasura CLI (optional):** install the Hasura CLI to export metadata and capture migrations. See `hasura/README.md` for quick commands.
+
+- **Database backups:** before switching to Hasura migrations, create a DB dump:
+
+```bash
+pg_dump -U <db_user> -h <db_host> -p <db_port> -Fc -f sms_backup.dump <db_name>
+```
+
+- **Migration capture:** when Hasura is connected to the same Postgres that Prisma used, run:
+
+```bash
+hasura migrate create "from-server" --from-server
+hasura migrate apply --all-databases
+hasura metadata export
+```
+
+Keep the `migrations/` and `metadata/` folders under version control after exporting.
