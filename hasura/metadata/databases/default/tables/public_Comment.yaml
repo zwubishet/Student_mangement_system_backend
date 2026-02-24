@@ -1,0 +1,10 @@
+table:
+  name: Comment
+  schema: public
+object_relationships:
+  - name: CommunityPost
+    using:
+      foreign_key_constraint_on: postId
+  - name: Student
+    using:
+      foreign_key_constraint_on: studentId

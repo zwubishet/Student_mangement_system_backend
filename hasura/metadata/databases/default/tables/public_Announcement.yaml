@@ -1,0 +1,7 @@
+table:
+  name: Announcement
+  schema: public
+object_relationships:
+  - name: GradeSection
+    using:
+      foreign_key_constraint_on: gradeId
