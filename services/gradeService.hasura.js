@@ -1,5 +1,6 @@
 import client from '../src/hasuraClient.js';
-import { gql } from '@apollo/client/core';
+import pkg_apollo from '@apollo/client';
+const { gql } = pkg_apollo;
 
 const GET_STUDENT_GRADES = gql`
   query GetStudentGrades($studentId: String!) {

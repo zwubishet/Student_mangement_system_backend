@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-bullseye-slim
 
 WORKDIR /usr/src/app
 
@@ -8,6 +8,9 @@ RUN npm ci --production
 
 # Copy app source
 COPY . .
+
+# Generate Prisma client for the runtime environment (ensure prisma client engine is available)
+RUN npx prisma generate || true
 
 EXPOSE 4000
 
