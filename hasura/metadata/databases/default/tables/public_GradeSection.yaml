@@ -1,25 +1,3 @@
 table:
   name: GradeSection
   schema: public
-array_relationships:
-  - name: Announcements
-    using:
-      foreign_key_constraint_on:
-        column: gradeId
-        table:
-          name: Announcement
-          schema: public
-  - name: Schedules
-    using:
-      foreign_key_constraint_on:
-        column: gradeSectionId
-        table:
-          name: Schedule
-          schema: public
-  - name: Students
-    using:
-      foreign_key_constraint_on:
-        column: gradeSectionId
-        table:
-          name: Student
-          schema: public

@@ -5,9 +5,11 @@ import prisma from '../prisma/client.js';
 import client from '../src/hasuraClient.js';
 import pkg_apollo from '@apollo/client';
 const { gql } = pkg_apollo;
+import { v4 as uuidv4 } from 'uuid';
 
 const login = async (req, res) => {
   const { role, identifier, password } = req.body;
+  console.log("Login attempt:", { role, identifier });
 
   if (!identifier || !role || !password) {
     return res.status(400).json({ message: "identifier, role, and password are required" });
@@ -35,6 +37,7 @@ const login = async (req, res) => {
 
       const resp = await client.query({ query: GET_STUDENT, variables: { studentId: identifier }, fetchPolicy: 'no-cache' });
       const student = resp?.data?.student && resp.data.student.length ? resp.data.student[0] : null;
+      console.log("Student query response:", resp);
 
       if (!student || !student.user) return res.status(404).json({ message: 'Student not found' });
 
@@ -126,8 +129,114 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+  console.error("Login error details:", {
+    message: error.message,
+    stack: error.stack,
+    graphQLErrors: error.graphQLErrors,      // ← very useful for Hasura
+    networkError: error.networkError,
+    extraInfo: error.extraInfo,
+  });
+
+  // If Apollo GraphQL error, log the full response
+  if (error.graphQLErrors) {
+    error.graphQLErrors.forEach(err => {
+      console.error("GraphQL Error:", err.message, err.extensions);
+    });
+  }
+
+  return res.status(500).json({ 
+    message: "Unable to complete login process.",
+    debug: process.env.NODE_ENV === 'development' ? error.message : undefined 
+  });
+}
+};
+
+// public registration helper (useful when the database is empty)
+// only basic validation is performed; in a real system this would be
+// locked down or replaced with a proper sign-up flow.
+const register = async (req, res) => {
+  const { role, fullName, password, identifier } = req.body;
+
+  if (!role || !fullName || !password || !identifier) {
+    return res.status(400).json({ message: 'role, fullName, password and identifier are required' });
+  }
+
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+
+    // 1️⃣ create user record
+    // note: `role` is a Hasura enum; declare variable as Role!
+    // supply a generated id because the Postgres table created via Prisma
+    // migrations does not define a default value for the `id` column; when
+    // inserting via Hasura we must therefore provide one ourselves.
+    const userId = uuidv4();
+    const CREATE_USER = gql`
+      mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: Role!) {
+        insert_User_one(object: { id: $id, fullName: $fullName, password: $password, role: $role }) {
+          id
+        }
+      }
+    `;
+    await client.mutate({
+      mutation: CREATE_USER,
+      variables: { id: userId, fullName, password: hashed, role },
+    });
+
+    // 2️⃣ create role-specific profile row
+    if (role === 'STUDENT') {
+      const { gradeSectionId } = req.body;
+      if (!gradeSectionId) {
+        return res.status(400).json({ message: 'gradeSectionId is required for STUDENT' });
+      }
+      const CREATE_STUDENT = gql`
+        mutation CreateStudent($userId: String!, $studentId: String!, $gradeSectionId: String!) {
+          insert_Student_one(object: { userId: $userId, studentId: $studentId, gradeSectionId: $gradeSectionId }) {
+            userId
+          }
+        }
+      `;
+      await client.mutate({
+        mutation: CREATE_STUDENT,
+        variables: { userId, studentId: identifier, gradeSectionId },
+      });
+    } else if (role === 'TEACHER') {
+      const { subject } = req.body;
+      if (!subject) {
+        return res.status(400).json({ message: 'subject is required for TEACHER' });
+      }
+      const CREATE_TEACHER = gql`
+        mutation CreateTeacher($userId: String!, $teacherId: String!, $subject: String!) {
+          insert_teacher_one(object: { userId: $userId, teacherId: $teacherId, subject: $subject }) {
+            id
+          }
+        }
+      `;
+      await client.mutate({
+        mutation: CREATE_TEACHER,
+        variables: { userId, teacherId: identifier, subject },
+      });
+    } else if (role === 'DIRECTOR') {
+      const { office } = req.body;
+      if (!office) {
+        return res.status(400).json({ message: 'office is required for DIRECTOR' });
+      }
+      const CREATE_DIRECTOR = gql`
+        mutation CreateDirector($userId: String!, $directorId: String!, $office: String!) {
+          insert_director_one(object: { userId: $userId, directorId: $directorId, office: $office }) {
+            id
+          }
+        }
+      `;
+      await client.mutate({
+        mutation: CREATE_DIRECTOR,
+        variables: { userId, directorId: identifier, office },
+      });
+    }
+
+    return res.status(201).json({ message: 'Registration successful', userId });
+  } catch (err) {
+    console.error('Registration error:', err);
+    return res.status(500).json({ message: 'Registration failed' });
   }
 };
 
@@ -180,4 +289,4 @@ const logout = async (req, res) => {
   }
 };
 
-export { login, refreshToken, logout };
+export { login, refreshToken, logout, register };

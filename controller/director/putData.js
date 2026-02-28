@@ -2,6 +2,7 @@ import prisma from "../../prisma/client.js";
 import bcrypt from "bcrypt";
 import client from '../../src/hasuraClient.js';
 import pkg_apollo from '@apollo/client';
+import { v4 as uuidv4 } from 'uuid';
 const { gql } = pkg_apollo;
 
 export const registerTeacher = async (req, res) => {
@@ -24,15 +25,22 @@ export const registerTeacher = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // generate a unique id because the User table has no default generator
+    const userId = uuidv4();
+
+    // mutation now takes explicit id
     const INSERT_USER = gql`
-      mutation InsertUser($fullName: String!, $password: String!, $role: String!) {
-        insert_User_one(object: { fullName: $fullName, password: $password, role: $role }) {
+      mutation InsertUser($id: String!, $fullName: String!, $password: String!, $role: Role!) {
+        insert_User_one(object: { id: $id, fullName: $fullName, password: $password, role: $role }) {
           id
           fullName
         }
       }
     `;
-    const userResp = await client.mutate({ mutation: INSERT_USER, variables: { fullName, password: hashedPassword, role: 'TEACHER' } });
+    const userResp = await client.mutate({
+      mutation: INSERT_USER,
+      variables: { id: userId, fullName, password: hashedPassword, role: 'TEACHER' },
+    });
     const user = userResp?.data?.insert_User_one;
 
     const INSERT_TEACHER = gql`

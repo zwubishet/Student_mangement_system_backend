@@ -1,15 +1,3 @@
 table:
   name: CommunityPost
   schema: public
-object_relationships:
-  - name: Student
-    using:
-      foreign_key_constraint_on: studentId
-array_relationships:
-  - name: Comments
-    using:
-      foreign_key_constraint_on:
-        column: postId
-        table:
-          name: Comment
-          schema: public

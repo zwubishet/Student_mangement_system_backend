@@ -1,32 +1,28 @@
 {
-  "name": "student_management_backend",
+  "name": "school-management-api",
   "version": "1.0.0",
-  "description": "\"backend part for student management system project\"",
-  "main": "index.js",
+  "description": "School management API with Hasura + Express",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "hasura:init": "hasura init hasura",
-    "hasura:metadata:export": "hasura metadata export --project hasura",
-    "hasura:migrate:create-from-server": "hasura migrate create \"from-server\" --from-server --project hasura",
-    "hasura:migrate:apply": "hasura migrate apply --all-databases --project hasura",
-    "console": "hasura console --project hasura"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "jest"
   },
-  "author": "",
-  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
   "dependencies": {
-    "@prisma/client": "^6.11.1",
-    "@apollo/client": "^3.11.1",
-    "cross-fetch": "^3.1.5",
-    "react": "^18.2.0",
-    "bcrypt": "^6.0.0",
+    "@apollo/client": "^3.14.0",
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
-    "express": "^5.1.0",
+    "cross-fetch": "^4.1.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "graphql": "^16.13.0",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemon": "^3.1.10",
-    "prisma": "^6.11.1"
+    "uuid": "^10.0.0"
   }
 }

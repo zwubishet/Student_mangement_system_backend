@@ -1,0 +1,43 @@
+-- 2. Create the new clean structure
+-- users table (central auth)
+CREATE TABLE IF NOT EXISTS users (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name   TEXT NOT NULL,
+  password    TEXT NOT NULL,          -- bcrypt hash
+  role        TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'director')),
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- student profile (1:1 with user)
+CREATE TABLE IF NOT EXISTS students (
+  user_id           TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  student_id        TEXT UNIQUE NOT NULL,   -- e.g. "STU-1234" or email/phone
+  grade_section_id  TEXT,                    -- nullable or FK if exists
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- teacher profile
+CREATE TABLE IF NOT EXISTS teachers (
+  user_id     TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  teacher_id  TEXT UNIQUE NOT NULL,
+  subject     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- director profile
+CREATE TABLE IF NOT EXISTS directors (
+  user_id      TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  director_id  TEXT UNIQUE NOT NULL,
+  office       TEXT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- refresh tokens (better name & added expiration)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id         TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token      TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
+);

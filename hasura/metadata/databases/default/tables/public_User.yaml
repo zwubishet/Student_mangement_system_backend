@@ -1,33 +1,3 @@
 table:
   name: User
   schema: public
-object_relationships:
-  - name: Director
-    using:
-      foreign_key_constraint_on:
-        column: userId
-        table:
-          name: Director
-          schema: public
-  - name: Student
-    using:
-      foreign_key_constraint_on:
-        column: userId
-        table:
-          name: Student
-          schema: public
-  - name: Teacher
-    using:
-      foreign_key_constraint_on:
-        column: userId
-        table:
-          name: Teacher
-          schema: public
-array_relationships:
-  - name: RefreshTokens
-    using:
-      foreign_key_constraint_on:
-        column: userId
-        table:
-          name: RefreshToken
-          schema: public

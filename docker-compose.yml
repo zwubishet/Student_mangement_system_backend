@@ -2,6 +2,12 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sms_user -d sms_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sms_user}
@@ -15,24 +21,35 @@ services:
     ports:
       - "8082:8080"
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Remove the command override if still present (not needed with healthcheck + depends_on)
+    # command: ...  # <-- delete this block entirely
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
-    depends_on:
-      - postgres
-
+    healthcheck:                          # <-- ADD THIS BLOCK
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s     
+                  # Give extra time for initial startup + catalog migration + DB connection
   app:
     build: .
     ports:
-      - "3:3000"
+      - "3003:3000"   # ← Fix this? Your original had "3:3000" which looks like a typo (probably meant 3000:3000 or similar)
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
       - HASURA_GRAPHQL_ENDPOINT=http://hasura:8080/v1/graphql
       - HASURA_ADMIN_SECRET=${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
     depends_on:
-      - postgres
-      - hasura
+      postgres:
+        condition: service_healthy
+      hasura:
+        condition: service_healthy        # <-- ADD THIS (now possible)
 
 volumes:
   pgdata:

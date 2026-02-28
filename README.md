@@ -45,6 +45,8 @@ student-management-backend/
 ## 🔐 Authentication
 
 - Students are **pre-registered** (no public sign-up)
+  (you can use the `/api/auth/register` endpoint during development to
+  insert the first users; once the system is live this should be disabled)
 - Login is handled via:
   - Student ID + Password
   - Passwords hashed with Bcrypt
@@ -121,6 +123,7 @@ Server will run on:
 | Method | Route                  | Description              |
 | ------ | ---------------------- | ------------------------ |
 | POST   | `/api/auth/login`      | Student login            |
+| POST   | `/api/auth/register`   | Create a new user (dev only) |
 | GET    | `/api/student/profile` | Get profile (JWT needed) |
 | GET    | `/api/schedule`        | Get student schedule     |
 

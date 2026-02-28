@@ -1,7 +1,3 @@
 table:
   name: SubjectResult
   schema: public
-object_relationships:
-  - name: StudentGrade
-    using:
-      foreign_key_constraint_on: studentGradeId

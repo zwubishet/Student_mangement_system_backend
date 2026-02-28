@@ -1,32 +1,3 @@
 table:
   name: Student
   schema: public
-object_relationships:
-  - name: GradeSection
-    using:
-      foreign_key_constraint_on: gradeSectionId
-  - name: User
-    using:
-      foreign_key_constraint_on: userId
-array_relationships:
-  - name: Comments
-    using:
-      foreign_key_constraint_on:
-        column: studentId
-        table:
-          name: Comment
-          schema: public
-  - name: CommunityPosts
-    using:
-      foreign_key_constraint_on:
-        column: studentId
-        table:
-          name: CommunityPost
-          schema: public
-  - name: StudentGrades
-    using:
-      foreign_key_constraint_on:
-        column: studentId
-        table:
-          name: StudentGrade
-          schema: public

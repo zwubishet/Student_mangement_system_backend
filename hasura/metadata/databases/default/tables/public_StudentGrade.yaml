@@ -1,15 +1,3 @@
 table:
   name: StudentGrade
   schema: public
-object_relationships:
-  - name: Student
-    using:
-      foreign_key_constraint_on: studentId
-array_relationships:
-  - name: SubjectResults
-    using:
-      foreign_key_constraint_on:
-        column: studentGradeId
-        table:
-          name: SubjectResult
-          schema: public
