@@ -12,6 +12,7 @@ enum Role {
   STUDENT
   TEACHER
   DIRECTOR
+  SUPER_ADMIN
 }
 
 model User {
@@ -24,6 +25,8 @@ model User {
   student    Student?
   teacher    Teacher?
   director   Director?
+  school     School?  @relation(fields: [schoolId], references: [id])
+  schoolId   String?
 }
 
 
@@ -152,5 +155,17 @@ model Comment {
   postId        String
   student       Student @relation(fields: [studentId], references: [userId])
   studentId     String
+}
+
+// new school model for multi‑tenant support
+model School {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  address    String?
+  createdBy  String   // userId of super admin who created
+  createdAt  DateTime @default(now())
+
+  users      User[]   // backwards relation
 }
 

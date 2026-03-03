@@ -7,7 +7,8 @@ const { gql } = pkg_apollo;
 
 // ✅ Single endpoint for all CRUD operations on users
 const manageUsers = async (req, res) => {
-  const { action, userId, role, fullName, password, identifier, gradeSectionId, subject, office } = req.body;
+  let { action, userId, role, fullName, password, identifier, gradeSectionId, subject, office, schoolId } = req.body;
+  if (role) role = role.toString().toUpperCase();
   
   // Validate action
   const validActions = ['create', 'update', 'delete'];
@@ -19,6 +20,12 @@ const manageUsers = async (req, res) => {
   const currentUserRole = req.user?.role; // From JWT middleware
   if (currentUserRole !== 'director') {
     return res.status(403).json({ message: 'Only directors can manage users' });
+  }
+
+  // directors may only manage users belonging to their own school
+  const currentSchool = req.user?.schoolId;
+  if (!currentSchool) {
+    return res.status(500).json({ message: 'Director account missing schoolId claim' });
   }
 
   try {
@@ -46,30 +53,34 @@ const manageUsers = async (req, res) => {
 
 // 🆕 CREATE - Enhanced version of your register function
 const handleCreateUser = async (req, res) => {
-  const { role, fullName, password, identifier, gradeSectionId, subject, office } = req.body;
+  let { role, fullName, password, identifier, gradeSectionId, subject, office } = req.body;
+  if (role) role = role.toString().toUpperCase();
 
   if (!role || !fullName || !password || !identifier) {
     return res.status(400).json({ message: 'role, fullName, password, and identifier are required' });
   }
 
   // Role-specific validation
-  if (role === 'student' && !gradeSectionId) {
+  if (role === 'STUDENT' && !gradeSectionId) {
     return res.status(400).json({ message: 'gradeSectionId required for STUDENT' });
   }
-  if (role === 'teacher' && !subject) {
+  if (role === 'TEACHER' && !subject) {
     return res.status(400).json({ message: 'subject required for TEACHER' });
   }
-  if (role === 'director' && !office) {
+  if (role === 'DIRECTOR' && !office) {
     return res.status(400).json({ message: 'office required for DIRECTOR' });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const newUserId = uuidv4();
 
+  // school of created user is the same as the director performing the action
+  const schoolId = req.user.schoolId;
+
   // 1. Create user
   const CREATE_USER = gql`
-    mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: String!) {
-      insert_users_one(object: { id: $id, full_name: $fullName, password: $password, role: $role }) {
+    mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: String!, $schoolId: uuid!) {
+      insert_users_one(object: { id: $id, full_name: $fullName, password: $password, role: $role, school_id: $schoolId }) {
         id
       }
     }
@@ -77,7 +88,7 @@ const handleCreateUser = async (req, res) => {
   
   await client.mutate({
     mutation: CREATE_USER,
-    variables: { id: newUserId, fullName, password: hashedPassword, role }
+    variables: { id: newUserId, fullName, password: hashedPassword, role, schoolId }
   });
 
   // 2. Create profile
@@ -150,6 +161,7 @@ const handleUpdateUser = async (req, res) => {
       users_by_pk(id: $userId) {
         id
         role
+        school_id
       }
     }
   `;
@@ -164,6 +176,10 @@ const handleUpdateUser = async (req, res) => {
   }
 
   const userRole = userCheck.data.users_by_pk.role;
+  const targetSchool = userCheck.data.users_by_pk.school_id;
+  if (targetSchool !== req.user.schoolId) {
+    return res.status(403).json({ message: 'Cannot modify a user from another school' });
+  }
   let hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
   // 1. Update user record
@@ -245,6 +261,23 @@ const handleUpdateUser = async (req, res) => {
 // 🆕 DELETE - Cascade deletes profile automatically
 const handleDeleteUser = async (req, res) => {
   const { userId } = req.body;
+
+  // ensure the user belongs to the same school as director
+  const CHECK_USER = gql`
+    query CheckUser($userId: String!) {
+      users_by_pk(id: $userId) {
+        id
+        school_id
+      }
+    }
+  `;
+  const checkResp = await client.query({ query: CHECK_USER, variables: { userId } });
+  if (!checkResp.data.users_by_pk) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  if (checkResp.data.users_by_pk.school_id !== req.user.schoolId) {
+    return res.status(403).json({ message: 'Cannot delete a user from another school' });
+  }
 
   // Soft delete option (add deleted_at column) or hard delete
   const DELETE_USER = gql`

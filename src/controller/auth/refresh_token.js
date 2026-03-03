@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken';
+// helper to create tokens with Hasura claims
+import { generateAccessToken } from '../../util/jwt.js';
 // correct path to the hasura client module
 import client from '../../hasuraClient.js';
 import pkg_apollo from '@apollo/client';
@@ -36,12 +38,12 @@ export const refreshToken = async (req, res) => {
     // 2. Verify JWT signature
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
     
-    // 3. Generate new access token
-    const newAccessToken = jwt.sign(
-      { userId: decoded.userId, role: decoded.role }, 
-      process.env.ACCESS_TOKEN_SECRET, 
-      { expiresIn: '15m' }
-    );
+    // 3. Generate new access token. Include any existing schoolId in the refresh payload.
+    const newAccessToken = generateAccessToken({
+      userId: decoded.userId,
+      role: decoded.role,
+      schoolId: decoded.schoolId
+    });
 
     return res.json({ accessToken: newAccessToken });
 

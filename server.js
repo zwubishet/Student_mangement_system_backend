@@ -4,6 +4,7 @@ import cors from 'cors';
 
 // pull in our auth handlers and helpers
 import authRouter from './src/routes/auth.js';
+import schoolRouter from './src/routes/school.js';
 import { manageUsers, authenticateToken, requireRole } from './src/controller/auth/index.js';
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // mount router instead of individual routes
 app.use('/auth', authRouter);
+app.use('/school', schoolRouter);
 
 // protected director action
 app.post(

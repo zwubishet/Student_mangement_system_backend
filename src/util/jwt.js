@@ -5,12 +5,18 @@ import jwt from 'jsonwebtoken';
  * payload should include at least { userId, role }
  */
 export function generateAccessToken(payload, opts = {}) {
-  const role = (payload.role || '').toString();
+  // normalize role to lowercase for Hasura claims because permissions are defined in lowercase
+  const role = (payload.role || '').toString().toLowerCase();
   const hasuraClaims = {
     'x-hasura-default-role': role,
-    'x-hasura-allowed-roles': ['student', 'teacher', 'director'],
+    'x-hasura-allowed-roles': ['student', 'teacher', 'director', 'super_admin'],
     'x-hasura-user-id': payload.userId || ''
   };
+
+  // include school id as a Hasura session variable (useful for row-level security)
+  if (payload.schoolId) {
+    hasuraClaims['x-hasura-school-id'] = payload.schoolId;
+  }
 
   const tokenPayload = {
     ...payload,

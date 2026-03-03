@@ -1,0 +1,28 @@
+table:
+  name: School
+  schema: public
+select_permissions:
+  - role: super_admin
+    permission:
+      columns: '*'
+  - role: director
+    permission:
+      columns: '*'
+  - role: teacher
+    permission:
+      columns: '*'
+  - role: student
+    permission:
+      columns: '*'
+insert_permissions:
+  - role: super_admin
+    permission:
+      columns: '*'
+update_permissions:
+  - role: super_admin
+    permission:
+      columns: '*'
+delete_permissions:
+  - role: super_admin
+    permission:
+      columns: '*'
