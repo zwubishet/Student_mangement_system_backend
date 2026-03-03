@@ -30,6 +30,13 @@ services:
       HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      # configure JWT so Hasura can verify tokens issued by our app
+      # secrets are reused from the same environment variables used by Node
+      HASURA_GRAPHQL_JWT_SECRET: >
+        {
+          "type": "HS256",
+          "key": "${ACCESS_TOKEN_SECRET:-dev_access_secret}"
+        }
     healthcheck:                          # <-- ADD THIS BLOCK
       test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 10s
@@ -40,11 +47,13 @@ services:
   app:
     build: .
     ports:
-      - "3003:3000"   # ← Fix this? Your original had "3:3000" which looks like a typo (probably meant 3000:3000 or similar)
+      - "3003:3003"   # use 3003 on host to avoid collisions
+      # map host 3003 to container 3003
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
       - HASURA_GRAPHQL_ENDPOINT=http://hasura:8080/v1/graphql
       - HASURA_ADMIN_SECRET=${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
+      - PORT=3003
     depends_on:
       postgres:
         condition: service_healthy

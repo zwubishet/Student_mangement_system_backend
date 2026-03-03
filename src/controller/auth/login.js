@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+// helper to create tokens with Hasura claims
+import { generateAccessToken, generateRefreshToken } from '../../util/jwt.js';
 // fix relative path: hasuraClient lives in src/ not src/controller/auth
 import client from '../../hasuraClient.js';
 import pkg_apollo from '@apollo/client';
@@ -109,9 +110,9 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
-    // ✅ Generate tokens (import from util/jwt.js)
-    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '30d' });
+    // ✅ Generate tokens (includes Hasura JWT claims)
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
 
     // ✅ Store refresh token
     const INSERT_REFRESH = gql`

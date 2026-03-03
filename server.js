@@ -22,7 +22,8 @@ app.post(
   manageUsers
 );
 
-const PORT = process.env.PORT || 3003;
+// stick with 3000 for consistency with other documentation
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

@@ -14,4 +14,5 @@ RUN npx prisma generate || true
 
 EXPOSE 4000
 
-CMD ["node", "index.js"]
+# entrypoint now moved to server.js (contains the Express setup)
+CMD ["node", "server.js"]

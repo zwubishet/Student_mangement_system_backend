@@ -1,10 +1,10 @@
-// src/auth/index.js - COMPLETE & FIXED
-import jwt from 'jsonwebtoken';  // ✅ ADD THIS IMPORT!
+import jwt from 'jsonwebtoken';  // ✅ for middleware
 import { login } from './login.js';
 import { refreshToken } from './refresh_token.js';
 import { logout } from './logout.js';
 import { register } from './register.js';
-import { manageUsers } from './manage-users.js';
+// manage-users lives under director folder now
+import { manageUsers } from '../director/manage-users.js';
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -16,25 +16,22 @@ export const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    req.user = decoded; // ✅ Works with your token!
+    req.user = decoded; // attach claims
     next();
   } catch (err) {
-    console.log('Token verification failed:', err.message); // ✅ Debug log
+    console.log('Token verification failed:', err.message);
     return res.status(403).json({ message: 'Invalid token' });
   }
 };
 
 export const requireRole = (roles) => {
   return (req, res, next) => {
-    console.log('User role check:', req.user?.role, 'Required:', roles); // ✅ Debug
-    if (!req.user || !roles.map(r => r.toLowerCase()).includes(req.user.role.toLowerCase())) {
-      return res.status(403).json({ 
-        message: `Role ${req.user?.role || 'none'} not authorized. Required: ${roles.join(', ')}` 
-      });
+    if (!req.user || !roles.map(r => r.toLowerCase()).includes(req.user.role?.toLowerCase())) {
+      return res.status(403).json({ message: `Role ${req.user?.role || 'none'} not authorized` });
     }
     next();
   };
 };
 
-// Export all handlers
+// export handlers
 export { login, refreshToken, logout, register, manageUsers };
