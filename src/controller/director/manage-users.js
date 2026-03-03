@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import client from '../hasuraClient.js';
+// the client is located two levels up
+import client from '../../hasuraClient.js';
 import pkg_apollo from '@apollo/client';
 const { gql } = pkg_apollo;
 
@@ -52,13 +53,13 @@ const handleCreateUser = async (req, res) => {
   }
 
   // Role-specific validation
-  if (role === 'STUDENT' && !gradeSectionId) {
+  if (role === 'student' && !gradeSectionId) {
     return res.status(400).json({ message: 'gradeSectionId required for STUDENT' });
   }
-  if (role === 'TEACHER' && !subject) {
+  if (role === 'teacher' && !subject) {
     return res.status(400).json({ message: 'subject required for TEACHER' });
   }
-  if (role === 'DIRECTOR' && !office) {
+  if (role === 'director' && !office) {
     return res.status(400).json({ message: 'office required for DIRECTOR' });
   }
 
@@ -67,7 +68,7 @@ const handleCreateUser = async (req, res) => {
 
   // 1. Create user
   const CREATE_USER = gql`
-    mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: Role!) {
+    mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: String!) {
       insert_users_one(object: { id: $id, full_name: $fullName, password: $password, role: $role }) {
         id
       }
@@ -81,15 +82,15 @@ const handleCreateUser = async (req, res) => {
 
   // 2. Create profile
   let profile;
-  if (role === 'STUDENT') {
+  if (role === 'student') {
     const CREATE_STUDENT = gql`
       mutation CreateStudent($userId: String!, $studentId: String!, $gradeSectionId: String!) {
         insert_students_one(object: { 
-          userId: $userId, 
+          user_id: $userId, 
           student_id: $studentId, 
           grade_section_id: $gradeSectionId 
         }) {
-          userId
+          user_id
         }
       }
     `;
@@ -97,15 +98,15 @@ const handleCreateUser = async (req, res) => {
       mutation: CREATE_STUDENT,
       variables: { userId: newUserId, studentId: identifier, gradeSectionId }
     });
-  } else if (role === 'TEACHER') {
+  } else if (role === 'teacher') {
     const CREATE_TEACHER = gql`
       mutation CreateTeacher($userId: String!, $teacherId: String!, $subject: String!) {
         insert_teachers_one(object: { 
-          userId: $userId, 
+          user_id: $userId, 
           teacher_id: $teacherId, 
           subject: $subject 
         }) {
-          userId
+          user_id
         }
       }
     `;
@@ -113,15 +114,16 @@ const handleCreateUser = async (req, res) => {
       mutation: CREATE_TEACHER,
       variables: { userId: newUserId, teacherId: identifier, subject }
     });
-  } else if (role === 'DIRECTOR') {
+    
+  } else if (role === 'director') {
     const CREATE_DIRECTOR = gql`
       mutation CreateDirector($userId: String!, $directorId: String!, $office: String!) {
         insert_directors_one(object: { 
-          userId: $userId, 
+          user_id: $userId, 
           director_id: $directorId, 
           office: $office 
         }) {
-          userId
+          user_id
         }
       }
     `;

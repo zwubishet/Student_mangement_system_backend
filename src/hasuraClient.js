@@ -13,6 +13,10 @@ const client = new ApolloClient({
     headers: { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET }
   }),
   cache: new InMemoryCache(),
+  defaultOptions: {
+    watchQuery: { fetchPolicy: 'no-cache' },
+    query: { fetchPolicy: 'no-cache' },
+  },
 });
 
 export default client;
