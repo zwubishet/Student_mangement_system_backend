@@ -1,3 +1,19 @@
 table:
   name: directors
   schema: public
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+select_permissions:
+  - role: director
+    permission:
+      columns:
+        - director_id
+        - office
+        - user_id
+        - created_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
