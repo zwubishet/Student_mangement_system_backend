@@ -10,7 +10,9 @@ select_permissions:
         - password
         - role
         - created_at
-      filter: {}
+      filter:
+        school_id:
+          _eq: X-Hasura-School-Id
       allow_aggregations: true
   - role: student
     permission:
