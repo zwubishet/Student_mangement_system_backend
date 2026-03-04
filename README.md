@@ -126,6 +126,7 @@ Server will run on:
 | POST   | `/api/auth/register`   | Create a new user (dev only) |
 | GET    | `/api/student/profile` | Get profile (JWT needed) |
 | GET    | `/api/schedule`        | Get student schedule     |
+| POST   | `/school/action/manageSchool` | School CRUD actions (super_admin only) |
 
 More routes coming soon as development continues.
 
@@ -140,6 +141,7 @@ More routes coming soon as development continues.
 * [ ] Notifications system
 * [ ] Community posts and chat
 * [ ] Telegram bot integration (optional)
+- [ ] Multi‑school support & management service (in progress)
 
 ---
 

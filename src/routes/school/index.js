@@ -1,6 +1,7 @@
 import express from 'express';
 import { manageSchool } from '../../controller/school/schoolController.js';
-import { authenticateToken, requireRole } from '../auth/index.js';
+// middleware comes from the controller auth module, not the routes directory
+import { authenticateToken, requireRole } from '../../controller/auth/index.js';
 
 const router = express.Router();
 

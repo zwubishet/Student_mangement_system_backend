@@ -29,7 +29,7 @@ export const login = async (req, res) => {
               full_name
               password
               role
-              school_id
+            schoolId
             }
           }
         }
@@ -44,7 +44,7 @@ export const login = async (req, res) => {
       if (!student?.user) return res.status(404).json({ message: 'Student not found' });
       
       userRecord = student;
-      payload = { studentId: student.student_id, userId: student.user.id, role: student.user.role, schoolId: student.user.school_id };
+      payload = { studentId: student.student_id, userId: student.user.id, role: student.user.role, schoolId: student.user.schoolId };
     }
 
     // ✅ TEACHER LOGIN
@@ -58,7 +58,7 @@ export const login = async (req, res) => {
               full_name
               password
               role
-              school_id
+            schoolId
             }
           }
         }
@@ -73,7 +73,7 @@ export const login = async (req, res) => {
       if (!teacher?.user) return res.status(404).json({ message: 'Teacher not found' });
       
       userRecord = teacher;
-      payload = { teacherId: teacher.teacher_id, userId: teacher.user.id, role: teacher.user.role, schoolId: teacher.user.school_id };
+      payload = { teacherId: teacher.teacher_id, userId: teacher.user.id, role: teacher.user.role, schoolId: teacher.user.schoolId };
     }
 
     // ✅ DIRECTOR LOGIN
@@ -87,7 +87,7 @@ export const login = async (req, res) => {
               full_name
               password
               role
-              school_id
+            schoolId
             }
           }
         }
@@ -102,7 +102,7 @@ export const login = async (req, res) => {
       if (!director?.user) return res.status(404).json({ message: 'Director not found' });
       
       userRecord = director;
-      payload = { directorId: director.director_id, userId: director.user.id, role: director.user.role, schoolId: director.user.school_id };
+      payload = { directorId: director.director_id, userId: director.user.id, role: director.user.role, schoolId: director.user.schoolId };
       console.log("Director login payload:", payload);
     } else {
       return res.status(400).json({ message: "Invalid role" });

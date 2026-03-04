@@ -11,7 +11,7 @@ select_permissions:
         - role
         - created_at
       filter:
-        school_id:
+        schoolId:
           _eq: X-Hasura-School-Id
       allow_aggregations: true
   - role: student

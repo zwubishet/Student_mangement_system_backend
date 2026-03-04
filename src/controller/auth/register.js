@@ -45,7 +45,7 @@ export const register = async (req, res) => {
           full_name: $fullName, 
           password: $password, 
           role: $role,
-          school_id: $schoolId
+          schoolId: $schoolId
         }) {
           id
         }

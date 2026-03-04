@@ -161,7 +161,7 @@ const handleUpdateUser = async (req, res) => {
       users_by_pk(id: $userId) {
         id
         role
-        school_id
+        schoolId
       }
     }
   `;
@@ -176,7 +176,7 @@ const handleUpdateUser = async (req, res) => {
   }
 
   const userRole = userCheck.data.users_by_pk.role;
-  const targetSchool = userCheck.data.users_by_pk.school_id;
+  const targetSchool = userCheck.data.users_by_pk.schoolId;
   if (targetSchool !== req.user.schoolId) {
     return res.status(403).json({ message: 'Cannot modify a user from another school' });
   }
@@ -267,7 +267,7 @@ const handleDeleteUser = async (req, res) => {
     query CheckUser($userId: String!) {
       users_by_pk(id: $userId) {
         id
-        school_id
+        schoolId
       }
     }
   `;
@@ -275,7 +275,7 @@ const handleDeleteUser = async (req, res) => {
   if (!checkResp.data.users_by_pk) {
     return res.status(404).json({ message: 'User not found' });
   }
-  if (checkResp.data.users_by_pk.school_id !== req.user.schoolId) {
+  if (checkResp.data.users_by_pk.schoolId !== req.user.schoolId) {
     return res.status(403).json({ message: 'Cannot delete a user from another school' });
   }
 
