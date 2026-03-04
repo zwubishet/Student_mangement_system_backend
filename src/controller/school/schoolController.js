@@ -1,6 +1,5 @@
-import client from '../hasuraClient.js';
-import pkg_apollo from '@apollo/client';
-const { gql } = pkg_apollo;
+// controller now delegates to service layer
+import * as SchoolService from '../../services/schoolService.js';
 
 /**
  * Controller responsible for all school-related operations. This mirrors the
@@ -28,20 +27,8 @@ export const manageSchool = async (req, res) => {
         if (!name || !code) {
           return res.status(400).json({ message: 'name and code are required' });
         }
-        const INSERT_SCHOOL = gql`
-          mutation InsertSchool($name: String!, $code: String!, $address: String) {
-            insert_School_one(object: { name: $name, code: $code, address: $address, created_by: "${req.user.userId}" }) {
-              id
-              name
-              code
-            }
-          }
-        `;
-        const result = await client.mutate({
-          mutation: INSERT_SCHOOL,
-          variables: { name, code, address }
-        });
-        return res.status(201).json({ school: result.data.insert_School_one });
+        const school = await SchoolService.insertSchool({ name, code, address, createdBy: req.user.userId });
+        return res.status(201).json({ school });
       }
 
       case 'update': {
@@ -51,16 +38,8 @@ export const manageSchool = async (req, res) => {
         if (!name && !code && !address) {
           return res.status(400).json({ message: 'name, code, or address must be specified' });
         }
-        const UPDATE_SCHOOL = gql`
-          mutation UpdateSchool($id: uuid!, $name: String, $code: String, $address: String) {
-            update_School_by_pk(pk_columns: { id: $id }, _set: { name: $name, code: $code, address: $address }) {
-              id
-            }
-          }
-        `;
-        const vars = { id: schoolId, name, code, address };
-        const resp = await client.mutate({ mutation: UPDATE_SCHOOL, variables: vars });
-        if (!resp.data.update_School_by_pk) {
+        const updated = await SchoolService.updateSchool({ id: schoolId, name, code, address });
+        if (!updated) {
           return res.status(404).json({ message: 'School not found' });
         }
         return res.json({ message: 'School updated', schoolId });
@@ -70,15 +49,8 @@ export const manageSchool = async (req, res) => {
         if (!schoolId) {
           return res.status(400).json({ message: 'schoolId is required for delete' });
         }
-        const DELETE_SCHOOL = gql`
-          mutation DeleteSchool($id: uuid!) {
-            delete_School_by_pk(id: $id) {
-              id
-            }
-          }
-        `;
-        const resp = await client.mutate({ mutation: DELETE_SCHOOL, variables: { id: schoolId } });
-        if (!resp.data.delete_School_by_pk) {
+        const deleted = await SchoolService.deleteSchool({ id: schoolId });
+        if (!deleted) {
           return res.status(404).json({ message: 'School not found' });
         }
         return res.json({ message: 'School deleted', schoolId });
