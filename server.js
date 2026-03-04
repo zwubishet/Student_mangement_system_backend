@@ -4,7 +4,8 @@ import cors from 'cors';
 
 // pull in our auth handlers and helpers
 import authRouter from './src/routes/auth.js';
-import schoolRouter from './src/routes/school.js';
+// routes for school are now in a dedicated folder
+import schoolRouter from './src/routes/school/index.js';
 import { manageUsers, authenticateToken, requireRole } from './src/controller/auth/index.js';
 
 const app = express();
