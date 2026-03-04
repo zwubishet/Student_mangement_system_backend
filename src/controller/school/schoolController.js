@@ -55,7 +55,6 @@ export const manageSchool = async (req, res) => {
         }
         return res.json({ message: 'School deleted', schoolId });
       }
-
       default: {
         return res.status(400).json({ message: `Unknown action: ${action}` });
       }
@@ -68,3 +67,8 @@ export const manageSchool = async (req, res) => {
     return res.status(500).json({ message: 'Operation failed' });
   }
 };
+
+// separate handler for assigning a user to a school
+// Note: school assignment is automatically handled during user creation
+// (new users inherit the creator's `schoolId`); hence the dedicated
+// assignUserSchool handler and route were removed.

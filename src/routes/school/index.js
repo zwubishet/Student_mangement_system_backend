@@ -12,4 +12,5 @@ router.post(
   manageSchool
 );
 
+
 export default router;

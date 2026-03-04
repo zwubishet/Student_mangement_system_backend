@@ -7,7 +7,7 @@ const { gql } = pkg_apollo;
 
 // ✅ Single endpoint for all CRUD operations on users
 const manageUsers = async (req, res) => {
-  let { action, userId, role, fullName, password, identifier, gradeSectionId, subject, office, schoolId } = req.body;
+  let { action, userId, role, fullName, password, identifier, gradeSectionId, subject, office } = req.body;
   if (role) role = role.toString().toUpperCase();
   
   // Validate action
