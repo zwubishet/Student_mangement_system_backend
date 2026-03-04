@@ -27,7 +27,18 @@ async function main() {
       fullName: 'Dr. Director',
       password: await bcrypt.hash('directorpass', 10),
       role: 'DIRECTOR',
+      // director will be linked to the sample school created below
+      schoolId: school.id
     },
+  // create a sample school early so we can link director and super admin
+  const school = await prisma.school.create({
+    data: {
+      name: 'Sample Primary School',
+      code: 'SPS001',
+      address: '123 Education Ln',
+      createdBy: 'seed-script',
+    },
+  });
   });
 
   // Create GradeSection
@@ -35,6 +46,7 @@ async function main() {
     data: {
       grade: '7',
       section: 'A',
+      // no explicit school link here, management via user.schoolId
     },
   });
 
@@ -130,6 +142,38 @@ async function main() {
       studentId: student.userId,
     },
   });
+
+  // create super admin associated with the same school
+  const superAdmin = await prisma.user.create({
+    data: {
+      fullName: 'Super Admin',
+      password: await bcrypt.hash('superpass', 10),
+      role: 'SUPER_ADMIN',
+      schoolId: school.id,
+    },
+  });
+
+  console.log('Seeded school:', school.code, 'and super admin:', superAdmin.fullName);
+  // ---------- EXTRA: create a school and a super_admin ----------
+  const school = await prisma.school.create({
+    data: {
+      name: 'Sample Primary School',
+      code: 'SPS001',
+      address: '123 Education Ln',
+      createdBy: 'seed-script',
+    },
+  });
+
+  const superAdmin = await prisma.user.create({
+    data: {
+      fullName: 'Super Admin',
+      password: await bcrypt.hash('superpass', 10),
+      role: 'SUPER_ADMIN',
+      schoolId: school.id,
+    },
+  });
+
+  console.log('Seeded school:', school.code, 'and super admin:', superAdmin.fullName);
 }
 
 main()
