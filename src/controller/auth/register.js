@@ -1,51 +1,80 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-// use correct relative path to the shared hasuraClient module
 import client from '../../hasuraClient.js';
-import pkg_apollo from '@apollo/client';
-const { gql } = pkg_apollo;
+import pkg from '@apollo/client';
+const { gql } = pkg;
+import { generateAccessToken, generateRefreshToken } from '../../util/jwt.js';
 
 export const register = async (req, res) => {
-  let { role, fullName, password, identifier, gradeSectionId, subject, office, schoolId } = req.body;
-  // normalize role casing for internal logic
-  if (role) {
-    role = role.toString().toUpperCase();
+  console.log("🔥=== REGISTER HANDLER ===");
+  console.log("🔥 req.body (RAW):", req.body);
+  
+  // ✅ SAME DOUBLE-NESTING FIX as login!
+  let finalInput = req.body.input?.input || req.body.input || req.body;
+  let { role, fullName, password, identifier, gradeSectionId, subject, office, schoolId } = finalInput || {};
+  
+  console.log("✅ EXTRACTED:", { role, identifier, fullName: fullName?.slice(0,20), schoolId });
+
+  // ✅ Normalize role to lowercase (for consistency with login)
+  const normalizedRole = role?.toString().toLowerCase().trim();
+
+  // ✅ Input validation - Hasura Action format
+  if (!normalizedRole || !fullName?.trim() || !password?.trim() || !identifier?.trim()) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'role, fullName, password and identifier are required' 
+    });
   }
 
-  // required for every user except a SUPER_ADMIN creating themselves via a special flow
-  if (!role || !fullName || !password || !identifier) {
-    return res.status(400).json({ message: 'role, fullName, password and identifier are required' });
+  // ✅ Role-specific validation
+  if (normalizedRole === 'student' && !gradeSectionId?.trim()) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'gradeSectionId is required for student' 
+    });
+  }
+  if (normalizedRole === 'teacher' && !subject?.trim()) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'subject is required for teacher' 
+    });
+  }
+  if (normalizedRole === 'director' && !office?.trim()) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'office is required for director' 
+    });
   }
 
-  // schoolId must be provided for all users except a top-level SUPER_ADMIN
-  if (role !== 'SUPER_ADMIN' && !schoolId) {
-    return res.status(400).json({ message: 'schoolId is required for non-super-admin users' });
+  // ✅ School validation (allow super_admin without schoolId)
+  const validRoles = ['student', 'teacher', 'director', 'super_admin'];
+  if (!validRoles.includes(normalizedRole)) {
+    return res.status(400).json({ 
+      success: false,
+      message: `Valid roles: ${validRoles.join(', ')}` 
+    });
   }
 
-  // Role-specific validation (compare uppercase)
-  if (role === 'STUDENT' && !gradeSectionId) {
-    return res.status(400).json({ message: 'gradeSectionId is required for STUDENT' });
-  }
-  if (role === 'TEACHER' && !subject) {
-    return res.status(400).json({ message: 'subject is required for TEACHER' });
-  }
-  if (role === 'DIRECTOR' && !office) {
-    return res.status(400).json({ message: 'office is required for DIRECTOR' });
+  if (normalizedRole !== 'super_admin' && !schoolId) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'schoolId is required for non-super-admin users' 
+    });
   }
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password.trim(), 12);
     const userId = uuidv4();
 
-    // 1️⃣ Create USER (include schoolId when available)
+    // ✅ 1. Create USER
     const CREATE_USER = gql`
-      mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: String!, $schoolId: uuid) {
+      mutation CreateUser($id: uuid!, $fullName: String!, $password: String!, $role: String!, $schoolId: uuid) {
         insert_users_one(object: { 
           id: $id, 
           full_name: $fullName, 
           password: $password, 
           role: $role,
-          schoolId: $schoolId
+          school_id: $schoolId
         }) {
           id
         }
@@ -54,13 +83,19 @@ export const register = async (req, res) => {
 
     await client.mutate({
       mutation: CREATE_USER,
-      variables: { id: userId, fullName, password: hashedPassword, role, schoolId }
+      variables: { 
+        id: userId, 
+        fullName: fullName.trim(), 
+        password: hashedPassword, 
+        role: normalizedRole,
+        ...(schoolId && { schoolId })
+      }
     });
 
-    // 2️⃣ Create PROFILE
-    if (role === 'student') {
+    // ✅ 2. Create PROFILE (role-specific)
+    if (normalizedRole === 'student') {
       const CREATE_STUDENT = gql`
-        mutation CreateStudent($userId: String!, $studentId: String!, $gradeSectionId: String!) {
+        mutation CreateStudent($userId: uuid!, $studentId: String!, $gradeSectionId: String!) {
           insert_students_one(object: { 
             user_id: $userId, 
             student_id: $studentId, 
@@ -72,11 +107,15 @@ export const register = async (req, res) => {
       `;
       await client.mutate({
         mutation: CREATE_STUDENT,
-        variables: { userId, studentId: identifier, gradeSectionId }
+        variables: { 
+          userId, 
+          studentId: identifier.trim(), 
+          gradeSectionId: gradeSectionId.trim() 
+        }
       });
-    } else if (role === 'teacher') {
+    } else if (normalizedRole === 'teacher') {
       const CREATE_TEACHER = gql`
-        mutation CreateTeacher($userId: String!, $teacherId: String!, $subject: String!) {
+        mutation CreateTeacher($userId: uuid!, $teacherId: String!, $subject: String!) {
           insert_teachers_one(object: { 
             user_id: $userId, 
             teacher_id: $teacherId, 
@@ -88,11 +127,15 @@ export const register = async (req, res) => {
       `;
       await client.mutate({
         mutation: CREATE_TEACHER,
-        variables: { userId, teacherId: identifier, subject }
+        variables: { 
+          userId, 
+          teacherId: identifier.trim(), 
+          subject: subject.trim() 
+        }
       });
-    } else if (role === 'director') {
+    } else if (normalizedRole === 'director') {
       const CREATE_DIRECTOR = gql`
-        mutation CreateDirector($userId: String!, $directorId: String!, $office: String!) {
+        mutation CreateDirector($userId: uuid!, $directorId: String!, $office: String!) {
           insert_directors_one(object: { 
             user_id: $userId, 
             director_id: $directorId, 
@@ -104,28 +147,43 @@ export const register = async (req, res) => {
       `;
       await client.mutate({
         mutation: CREATE_DIRECTOR,
-        variables: { userId, directorId: identifier, office }
+        variables: { 
+          userId, 
+          directorId: identifier.trim(), 
+          office: office.trim() 
+        }
       });
     }
+    // ✅ SUPER_ADMIN - no profile table needed
 
-    // generate tokens so caller can immediately authenticate
-    // payload should mirror what login would send
-    const { generateAccessToken, generateRefreshToken } = await import('../../util/jwt.js');
-    const payload = { userId, role, schoolId };
+    // ✅ 3. Generate tokens
+    const payload = { 
+      userId, 
+      role: normalizedRole, 
+      ...(schoolId && { schoolId }) 
+    };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // persist refresh token
+    // ✅ 4. Store refresh token
     const INSERT_REFRESH = gql`
-      mutation InsertRefresh($token: String!, $userId: String!) {
-        insert_refresh_tokens_one(object: { token: $token, user_id: $userId }) {
+      mutation InsertRefresh($token: String!, $userId: uuid!) {
+        insert_refresh_tokens_one(object: { 
+          token: $token, 
+          user_id: $userId 
+        }) {
           id
         }
       }
     `;
-    await client.mutate({ mutation: INSERT_REFRESH, variables: { token: refreshToken, userId } });
+    await client.mutate({ 
+      mutation: INSERT_REFRESH, 
+      variables: { token: refreshToken, userId } 
+    });
 
+    // ✅ EXACT Hasura Action Response Format
     return res.status(201).json({
+      success: true,
       message: 'Registration successful',
       userId,
       accessToken,
@@ -133,13 +191,22 @@ export const register = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Registration error:', err);
+    console.error('Registration error:', {
+      message: err.message,
+      graphQLErrors: err.graphQLErrors,
+      input: { role: normalizedRole, identifier: identifier?.slice(0,4)+'...' }
+    });
     
-    // Handle duplicate identifier errors
     if (err.message.includes('duplicate key')) {
-      return res.status(409).json({ message: 'Identifier already exists' });
+      return res.status(409).json({ 
+        success: false,
+        message: 'Identifier or userId already exists' 
+      });
     }
     
-    return res.status(500).json({ message: 'Registration failed' });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Registration failed' 
+    });
   }
 };
