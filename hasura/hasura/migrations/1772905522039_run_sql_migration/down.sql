@@ -1,0 +1,4 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE academic.parents ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE academic.ParentStudents ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,7 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE identity.Roles (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     school_id UUID REFERENCES tenancy.schools(id),
+--     name TEXT NOT NULL
+-- );

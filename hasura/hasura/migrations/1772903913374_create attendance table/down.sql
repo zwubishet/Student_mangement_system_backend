@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE operations.Attendance (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     session_id UUID REFERENCES operations.AttendanceSessions(id),
+--     student_id UUID REFERENCES student.students(id),
+--     status TEXT
+-- );

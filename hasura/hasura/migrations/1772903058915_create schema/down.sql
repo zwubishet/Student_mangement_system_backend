@@ -1,0 +1,9 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE SCHEMA tenancy;
+-- CREATE SCHEMA identity;
+-- CREATE SCHEMA academic;
+-- CREATE SCHEMA student;
+-- CREATE SCHEMA operations;
+-- CREATE SCHEMA finance;
+-- CREATE SCHEMA infrastructure;

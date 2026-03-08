@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE tenancy.SchoolSettings (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     school_id UUID REFERENCES tenancy.schools(id),
+--     key TEXT NOT NULL,
+--     value TEXT
+-- );

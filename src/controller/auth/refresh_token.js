@@ -7,6 +7,9 @@ import { generateAccessToken, generateRefreshToken } from '../../util/jwt.js';
 export const refreshToken = async (req, res) => {
   console.log("🔥=== REFRESH HANDLER ===");
   console.log("🔥 req.body (RAW):", req.body);
+  console.log("🔍 Hasura Action FULL input:", JSON.stringify(req.body, null, 2));
+  console.log("🔍 decoded.userId type:", typeof decoded.userId, decoded.userId);
+
   
   // ✅ SAME DOUBLE-NESTING FIX as login/register!
   let finalInput = req.body.input?.input || req.body.input || req.body;
@@ -78,8 +81,12 @@ export const refreshToken = async (req, res) => {
     const decoded = jwt.verify(token.trim(), process.env.REFRESH_TOKEN_SECRET);
     
     // ✅ 3. Validate user still exists
+    // `users_by_pk` expects a String argument for the id field (Hasura
+    // still treats the `id` column as a text scalar even though we use
+    // UUIDs in practice).  declaring the variable as `String!` avoids the
+    // "declared as 'uuid!' but used where 'String!' is expected" error.
     const GET_USER = gql`
-      query GetUser($userId: uuid!) {
+      query GetUser($userId: String!) {
         users_by_pk(id: $userId) {
           id
           role
@@ -115,8 +122,12 @@ export const refreshToken = async (req, res) => {
     console.log("✅ Generated new tokens for user:", payload.userId);
 
     // ✅ 6. Rotate refresh token (delete old, insert new)
+    // In your refreshToken handler - REPLACE the rotation part:
+    // again, use String for userId because that's what Hasura expects for
+    // the users_by_pk lookup and the refresh_tokens.user_id column is
+    // currently exposed as String in the schema.
     const ROTATE_REFRESH = gql`
-      mutation RotateRefresh($oldToken: String!, $newToken: String!, $userId: uuid!) {
+      mutation RotateRefresh($oldToken: String!, $newToken: String!, $userId: String!) {
         delete_refresh_tokens(where: { token: { _eq: $oldToken } }) {
           affected_rows
         }
@@ -128,15 +139,16 @@ export const refreshToken = async (req, res) => {
         }
       }
     `;
-    
+
     await client.mutate({ 
       mutation: ROTATE_REFRESH, 
       variables: { 
-        oldToken: token.trim(), 
-        newToken: newRefreshToken, 
-        userId: decoded.userId 
-      } 
+        oldToken: token.trim(),
+        newToken: newRefreshToken,
+        userId: decoded.userId  // ✅ UUID string works!
+      }
     });
+
 
     console.log(`✅ Token rotation success for user: ${decoded.userId}`);
 

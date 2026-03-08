@@ -1,0 +1,7 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE academic.Sections (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     grade_id UUID REFERENCES academic.grades(id),
+--     name TEXT
+-- );

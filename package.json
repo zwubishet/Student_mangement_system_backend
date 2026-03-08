@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
+    
+    "dev": "nodemon --legacy-watch --watch server.js --watch src --ext js,mjs,json server.js",
     "start": "node server.js",
     "test": "jest"
   },

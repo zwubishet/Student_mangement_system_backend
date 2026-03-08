@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE operations.Exams (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     school_id UUID REFERENCES tenancy.schools(id),
+--     name TEXT,
+--     term_id UUID REFERENCES academic.terms(id)
+-- );

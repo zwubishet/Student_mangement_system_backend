@@ -205,7 +205,7 @@ export const login = async (req, res) => {
 
     // ✅ Cleanup old refresh tokens
     const CLEANUP_REFRESH = gql`
-      mutation CleanupRefresh($userId: uuid!) {
+      mutation CleanupRefresh($userId: String!) {
         delete_refresh_tokens(where: { user_id: { _eq: $userId } }) {
           affected_rows
         }
@@ -222,7 +222,7 @@ export const login = async (req, res) => {
 
     // ✅ Store new refresh token
     const INSERT_REFRESH = gql`
-      mutation InsertRefresh($token: String!, $userId: uuid!) {
+      mutation InsertRefresh($token: String!, $userId: String!) {
         insert_refresh_tokens_one(object: { 
           token: $token, 
           user_id: $userId 

@@ -57,7 +57,7 @@ services:
     volumes:
       - .:/app          # ✅ Hot reload!
       - /app/node_modules
-    command: node server.js  # ✅ Auto restart!
+    command: npm run dev  # ✅ Auto restart!
     depends_on:
       postgres:
         condition: service_healthy

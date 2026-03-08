@@ -68,7 +68,7 @@ export const register = async (req, res) => {
 
     // ✅ 1. Create USER
     const CREATE_USER = gql`
-      mutation CreateUser($id: uuid!, $fullName: String!, $password: String!, $role: String!, $schoolId: uuid) {
+      mutation CreateUser($id: String!, $fullName: String!, $password: String!, $role: String!, $schoolId: uuid) {
         insert_users_one(object: { 
           id: $id, 
           full_name: $fullName, 
@@ -95,7 +95,7 @@ export const register = async (req, res) => {
     // ✅ 2. Create PROFILE (role-specific)
     if (normalizedRole === 'student') {
       const CREATE_STUDENT = gql`
-        mutation CreateStudent($userId: uuid!, $studentId: String!, $gradeSectionId: String!) {
+        mutation CreateStudent($userId: String!, $studentId: String!, $gradeSectionId: String!) {
           insert_students_one(object: { 
             user_id: $userId, 
             student_id: $studentId, 
@@ -115,7 +115,7 @@ export const register = async (req, res) => {
       });
     } else if (normalizedRole === 'teacher') {
       const CREATE_TEACHER = gql`
-        mutation CreateTeacher($userId: uuid!, $teacherId: String!, $subject: String!) {
+        mutation CreateTeacher($userId: String!, $teacherId: String!, $subject: String!) {
           insert_teachers_one(object: { 
             user_id: $userId, 
             teacher_id: $teacherId, 
@@ -135,7 +135,7 @@ export const register = async (req, res) => {
       });
     } else if (normalizedRole === 'director') {
       const CREATE_DIRECTOR = gql`
-        mutation CreateDirector($userId: uuid!, $directorId: String!, $office: String!) {
+        mutation CreateDirector($userId: String!, $directorId: String!, $office: String!) {
           insert_directors_one(object: { 
             user_id: $userId, 
             director_id: $directorId, 
@@ -167,7 +167,7 @@ export const register = async (req, res) => {
 
     // ✅ 4. Store refresh token
     const INSERT_REFRESH = gql`
-      mutation InsertRefresh($token: String!, $userId: uuid!) {
+      mutation InsertRefresh($token: String!, $userId: String!) {
         insert_refresh_tokens_one(object: { 
           token: $token, 
           user_id: $userId 

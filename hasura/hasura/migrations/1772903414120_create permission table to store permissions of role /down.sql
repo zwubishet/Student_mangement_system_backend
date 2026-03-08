@@ -1,0 +1,7 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE identity.Permissions (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     name TEXT UNIQUE,
+--     description TEXT
+-- );

@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE academic.teachers ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE academic.classes ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE academic.sections ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE academic.attendance ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE finance.invoices ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE finance.payments ENABLE ROW LEVEL SECURITY;

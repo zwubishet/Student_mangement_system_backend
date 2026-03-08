@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE finance.FeeStructures (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     school_id UUID REFERENCES tenancy.schools(id),
+--     grade_id UUID REFERENCES academic.grades(id),
+--     name TEXT
+-- );

@@ -1,240 +1,172 @@
 - table:
-    name: Announcement
-    schema: public
-- table:
-    name: Comment
-    schema: public
-- table:
-    name: CommunityPost
-    schema: public
-- table:
-    name: GradeSection
-    schema: public
-- table:
-    name: Resource
-    schema: public
-- table:
-    name: Schedule
-    schema: public
-- table:
-    name: School
-    schema: public
-  insert_permissions:
-    - role: super_admin
-      permission:
-        check: {}
-        columns:
-          - address
-          - code
-          - created_at
-          - created_by
-          - id
-          - name
+    name: academicyears
+    schema: academic
   select_permissions:
-    - role: director
+    - role: PARENT
       permission:
         columns:
-          - address
-          - code
-          - created_at
-          - created_by
-          - id
+          - end_date
+          - start_date
           - name
-        filter: {}
-        allow_aggregations: true
-    - role: student
-      permission:
-        columns:
-          - address
-          - code
-          - created_at
-          - created_by
           - id
-          - name
-        filter: {}
-        allow_aggregations: true
-    - role: super_admin
-      permission:
-        columns:
-          - address
-          - code
-          - created_at
-          - created_by
-          - id
-          - name
-        filter: {}
-        allow_aggregations: true
-    - role: teacher
-      permission:
-        columns:
-          - address
-          - code
-          - created_at
-          - created_by
-          - id
-          - name
-        filter: {}
-        allow_aggregations: true
-  update_permissions:
-    - role: super_admin
-      permission:
-        columns:
-          - address
-          - code
-          - created_at
-          - created_by
-          - id
-          - name
-        filter: {}
-        check: {}
-  delete_permissions:
-    - role: super_admin
-      permission:
-        filter: {}
-- table:
-    name: StudentGrade
-    schema: public
-- table:
-    name: SubjectResult
-    schema: public
-- table:
-    name: directors
-    schema: public
-  object_relationships:
-    - name: user
-      using:
-        foreign_key_constraint_on: user_id
-  select_permissions:
-    - role: director
-      permission:
-        columns:
-          - director_id
-          - office
-          - user_id
-          - created_at
+          - school_id
         filter:
-          user_id:
-            _eq: X-Hasura-User-Id
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: STUDENT
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
         allow_aggregations: true
 - table:
-    name: refresh_tokens
-    schema: public
+    name: attendance
+    schema: academic
 - table:
-    name: students
-    schema: public
-  object_relationships:
-    - name: user
-      using:
-        foreign_key_constraint_on: user_id
-  select_permissions:
-    - role: director
-      permission:
-        columns:
-          - grade_section_id
-          - student_id
-          - user_id
-          - created_at
-          - updated_at
-        filter: {}
-        allow_aggregations: true
-    - role: student
-      permission:
-        columns:
-          - grade_section_id
-          - student_id
-          - user_id
-          - created_at
-          - updated_at
-        filter:
-          user_id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
-    - role: teacher
-      permission:
-        columns:
-          - grade_section_id
-          - student_id
-          - user_id
-          - created_at
-          - updated_at
-        filter:
-          user_id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
+    name: classes
+    schema: academic
+- table:
+    name: grades
+    schema: academic
+- table:
+    name: parents
+    schema: academic
+- table:
+    name: parentstudents
+    schema: academic
+- table:
+    name: sections
+    schema: academic
+- table:
+    name: subjects
+    schema: academic
+- table:
+    name: teacherassignments
+    schema: academic
 - table:
     name: teachers
-    schema: public
-  object_relationships:
-    - name: user
-      using:
-        foreign_key_constraint_on: user_id
-  select_permissions:
-    - role: director
-      permission:
-        columns:
-          - subject
-          - teacher_id
-          - user_id
-          - created_at
-        filter: {}
-        allow_aggregations: true
-    - role: student
-      permission:
-        columns:
-          - subject
-          - teacher_id
-          - user_id
-          - created_at
-        filter:
-          user_id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
-    - role: teacher
-      permission:
-        columns:
-          - subject
-          - teacher_id
-          - user_id
-          - created_at
-        filter:
-          user_id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
+    schema: academic
+- table:
+    name: terms
+    schema: academic
+- table:
+    name: feestructureitems
+    schema: finance
+- table:
+    name: feestructures
+    schema: finance
+- table:
+    name: invoices
+    schema: finance
+- table:
+    name: payments
+    schema: finance
+- table:
+    name: paymenttransactions
+    schema: finance
+- table:
+    name: studentinvoices
+    schema: finance
+- table:
+    name: permissions
+    schema: identity
+- table:
+    name: rolepermissions
+    schema: identity
+- table:
+    name: roles
+    schema: identity
+- table:
+    name: userroles
+    schema: identity
 - table:
     name: users
-    schema: public
-  select_permissions:
-    - role: director
-      permission:
-        columns:
-          - full_name
-          - id
-          - password
-          - role
-          - created_at
-        filter: {}
-        allow_aggregations: true
-    - role: student
-      permission:
-        columns:
-          - full_name
-          - id
-          - password
-          - role
-          - created_at
-        filter:
-          id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
-    - role: teacher
-      permission:
-        columns:
-          - full_name
-          - id
-          - password
-          - role
-          - created_at
-        filter:
-          id:
-            _eq: X-Hasura-User-Id
-        allow_aggregations: true
+    schema: identity
+- table:
+    name: auditlogs
+    schema: infrastructure
+- table:
+    name: files
+    schema: infrastructure
+- table:
+    name: notifications
+    schema: infrastructure
+- table:
+    name: attendance
+    schema: operations
+- table:
+    name: attendancesessions
+    schema: operations
+- table:
+    name: examresults
+    schema: operations
+- table:
+    name: exams
+    schema: operations
+- table:
+    name: examsubjects
+    schema: operations
+- table:
+    name: homeworks
+    schema: operations
+- table:
+    name: guardians
+    schema: student
+- table:
+    name: studentenrollments
+    schema: student
+- table:
+    name: students
+    schema: student
+- table:
+    name: schools
+    schema: tenancy
+- table:
+    name: schoolsettings
+    schema: tenancy
+- table:
+    name: subscriptions
+    schema: tenancy

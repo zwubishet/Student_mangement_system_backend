@@ -1,0 +1,9 @@
+CREATE TABLE student.Students (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id UUID REFERENCES tenancy.schools(id),
+    admission_number TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    gender TEXT,
+    date_of_birth DATE
+);

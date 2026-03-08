@@ -1,0 +1,8 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE TABLE finance.PaymentTransactions (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     payment_id UUID REFERENCES finance.payments(id),
+--     gateway TEXT,
+--     gateway_transaction_id TEXT
+-- );
