@@ -82,6 +82,19 @@
             - school_id:
                 _eq: X-Hasura-School-Id
         allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - date
+          - status
+          - created_at
+          - id
+          - marked_by
+          - school_id
+          - section_id
+          - student_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: classes
     schema: academic
