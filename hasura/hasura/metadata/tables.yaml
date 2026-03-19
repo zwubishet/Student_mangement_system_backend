@@ -98,6 +98,20 @@
 - table:
     name: classes
     schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - grade_level
+          - description
+          - name
+          - created_at
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
 - table:
     name: grades
     schema: academic
@@ -110,18 +124,218 @@
 - table:
     name: sections
     schema: academic
+  object_relationships:
+    - name: grade
+      using:
+        foreign_key_constraint_on: grade_id
+  array_relationships:
+    - name: attendances
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: attendance
+            schema: academic
+    - name: attendancesessions
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: attendancesessions
+            schema: operations
+    - name: homeworks
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: homeworks
+            schema: operations
+    - name: studentenrollments
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: studentenrollments
+            schema: student
+    - name: teacherassignments
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: teacherassignments
+            schema: academic
 - table:
     name: subjects
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  array_relationships:
+    - name: attendancesessions
+      using:
+        foreign_key_constraint_on:
+          column: subject_id
+          table:
+            name: attendancesessions
+            schema: operations
+    - name: examsubjects
+      using:
+        foreign_key_constraint_on:
+          column: subject_id
+          table:
+            name: examsubjects
+            schema: operations
+    - name: homeworks
+      using:
+        foreign_key_constraint_on:
+          column: subject_id
+          table:
+            name: homeworks
+            schema: operations
+    - name: teacherassignments
+      using:
+        foreign_key_constraint_on:
+          column: subject_id
+          table:
+            name: teacherassignments
+            schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: STUDENT
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - teacherassignments:
+                teacher_id:
+                  _eq: X-Hasura-Teacher-Id
+        allow_aggregations: true
 - table:
     name: teacherassignments
     schema: academic
+  object_relationships:
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
+    - name: subject
+      using:
+        foreign_key_constraint_on: subject_id
+    - name: user
+      using:
+        foreign_key_constraint_on: teacher_id
 - table:
     name: teachers
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - hire_date
+          - email
+          - first_name
+          - last_name
+          - phone
+          - status
+          - created_at
+          - id
+          - school_id
+          - user_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - hire_date
+          - email
+          - first_name
+          - last_name
+          - phone
+          - status
+          - created_at
+          - id
+          - school_id
+          - user_id
+        filter: {}
+    - role: TEACHER
+      permission:
+        columns:
+          - hire_date
+          - email
+          - first_name
+          - last_name
+          - phone
+          - status
+          - created_at
+          - id
+          - school_id
+          - user_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - id:
+                _eq: X-Hasura-Teacher-Id
+            - user_id:
+                _eq: X-Hasura-User-Id
+        allow_aggregations: true
 - table:
     name: terms
     schema: academic
+  object_relationships:
+    - name: academicyear
+      using:
+        foreign_key_constraint_on: academic_year_id
+  array_relationships:
+    - name: exams
+      using:
+        foreign_key_constraint_on:
+          column: term_id
+          table:
+            name: exams
+            schema: operations
 - table:
     name: feestructureitems
     schema: finance
