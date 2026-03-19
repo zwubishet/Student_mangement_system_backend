@@ -65,6 +65,23 @@
 - table:
     name: attendance
     schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - date
+          - status
+          - created_at
+          - id
+          - marked_by
+          - school_id
+          - section_id
+          - student_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+        allow_aggregations: true
 - table:
     name: classes
     schema: academic
@@ -152,21 +169,208 @@
 - table:
     name: homeworks
     schema: operations
+  select_permissions:
+    - role: PARENT
+      permission:
+        columns:
+          - due_date
+          - description
+          - title
+          - id
+          - section_id
+          - subject_id
+          - teacher_id
+        filter:
+          _and:
+            - teacher_id:
+                _eq: X-Hasura-Teacher-Id
+        allow_aggregations: true
 - table:
     name: guardians
     schema: student
 - table:
     name: studentenrollments
     schema: student
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - academic_year_id
+          - id
+          - section_id
+          - student_id
+        filter:
+          _and:
+            - student_id:
+                _eq: X-Hasura-Student-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - academic_year_id
+          - id
+          - section_id
+          - student_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: students
     schema: student
+  select_permissions:
+    - role: PARENT
+      permission:
+        columns:
+          - date_of_birth
+          - admission_number
+          - first_name
+          - gender
+          - last_name
+          - id
+          - school_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - date_of_birth
+          - admission_number
+          - first_name
+          - gender
+          - last_name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: STUDENT
+      permission:
+        columns:
+          - date_of_birth
+          - admission_number
+          - first_name
+          - gender
+          - last_name
+          - id
+          - school_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - id:
+                _eq: X-Hasura-Student-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - date_of_birth
+          - admission_number
+          - first_name
+          - gender
+          - last_name
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - date_of_birth
+          - admission_number
+          - first_name
+          - gender
+          - last_name
+          - id
+          - school_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+        allow_aggregations: true
 - table:
     name: schools
     schema: tenancy
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - domain
+          - name
+          - plan
+          - status
+          - created_at
+          - id
+        filter:
+          id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - domain
+          - name
+          - plan
+          - status
+          - created_at
+          - id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: schoolsettings
     schema: tenancy
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - key
+          - value
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - key
+          - value
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: subscriptions
     schema: tenancy
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - customer_id
+          - plan
+          - status
+          - subscription_id
+          - period_end
+          - period_start
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - customer_id
+          - plan
+          - status
+          - subscription_id
+          - period_end
+          - period_start
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
