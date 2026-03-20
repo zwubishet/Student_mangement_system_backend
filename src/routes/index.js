@@ -1,7 +1,7 @@
-const express = require('express');
-import { authrouter } from './authRoutes.js';
+import express from 'express';
+import  authrouter from './authRoutes.js';
 
-const router = express.Router();
+const mainRouter = express.Router();
 
 // Import your route modules here
 // Example:
@@ -12,6 +12,6 @@ const router = express.Router();
 // router.use('/students', studentsRouter);
 // router.use('/teachers', teachersRouter);
 
-router.use('/auth', authrouter);
+mainRouter.use('/auth', authrouter);
 
-module.exports = router;
+export default mainRouter;

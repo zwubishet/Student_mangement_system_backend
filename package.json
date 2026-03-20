@@ -5,7 +5,6 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    
     "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
     "start": "node server.js",
     "test": "jest"
@@ -16,14 +15,18 @@
   "dependencies": {
     "@apollo/client": "^3.14.0",
     "bcrypt": "^5.1.1",
-    "cors": "^2.8.5",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
     "cross-fetch": "^4.1.0",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
-    "express-rate-limit": "^7.2.0",
+    "express-rate-limit": "^7.5.1",
     "graphql": "^16.13.0",
-    "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
+    "helmet": "^7.2.0",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "redis": "^5.11.0",
     "uuid": "^10.0.0"
   }
 }

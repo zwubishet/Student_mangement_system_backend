@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 
 export const hashPassword = async (pw) => await bcrypt.hash(pw, 12);
 
-export const comparePassword = async (pw, hashed) => await bcrypt.compare(pw, hashed);
+export const comparePasswords = async (pw, hashed) => await bcrypt.compare(pw, hashed);
 
 export const generateHasuraToken = (user) => {
   const payload = {

@@ -1,7 +1,7 @@
 import * as authService from '../../services/authService.js';
-import { signupSchema } from '../../util/validators.js';
+import { signupSchema } from '../../utils/validators.js';
 import catchAsync from '../../utils/catchAsync.js';
-import AppError from '../../util/appError.js';
+import AppError from '../../utils/appError.js';
 
 export const registerSchool = catchAsync(async (req, res, next) => {
   // 1. Validate Input

@@ -1,6 +1,6 @@
 import { getClient, query } from '../config/db.js';
-import { hashPassword, comparePasswords, signToken } from '../util/auth.js';
-import AppError from '../util/appError.js';
+import { hashPassword, comparePasswords, generateHasuraToken } from '../utils/auth.js';
+import AppError from '../utils/appError.js';
 
 
 export const registerSchoolAndAdmin = async (signupData) => {
@@ -47,7 +47,7 @@ export const registerSchoolAndAdmin = async (signupData) => {
 
     await client.query('COMMIT');
 
-    const token = signToken({ id: userId, schoolId: schoolId }, ['admin']);
+    const token = generateHasuraToken({ id: userId, schoolId: schoolId });
 
     return { token, user: { id: userId, email, schoolId } };
   } catch (error) {

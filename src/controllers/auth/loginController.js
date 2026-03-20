@@ -1,7 +1,7 @@
 import * as authService from '../../services/authService.js';
-import { loginSchema } from '../../util/validators.js';
-import catchAsync from '../../util/catchAsync.js';
-import AppError from '../../util/appError.js';
+import { loginSchema } from '../../utils/validators.js';
+import catchAsync from '../../utils/catchAsync.js';
+import AppError from '../../utils/appError.js';
 
 export const login = catchAsync(async (req, res, next) => {
   // 1. Validate Input

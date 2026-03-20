@@ -1,8 +1,8 @@
 import redisClient from '../../config/redis.js';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/index.js';
-import catchAsync from '../../util/catchAsync.js';
-import AppError from '../../util/appError.js';
+import catchAsync from '../../utils/catchAsync.js';
+import AppError from '../../utils/appError.js';
 
 export const logout = catchAsync(async (req, res, next) => {
   const authHeader = req.headers.authorization;

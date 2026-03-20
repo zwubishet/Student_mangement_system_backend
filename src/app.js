@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { globalErrorHandler } from './middleware/errorMiddleware.js';
-import AppError from './util/appError.js';
+import { globalErrorHandler } from './middlewares/errorMiddleware.js';
+import AppError from './utils/appError.js';
+import mainRouter from './routes/index.js';
 
 const app = express();
 
@@ -10,6 +11,8 @@ const app = express();
 app.use(helmet()); // Sets various HTTP headers for security
 app.use(cors());
 app.use(express.json({ limit: '10kb' })); // Body parser
+
+app.post('/api', mainRouter)
 
 // Placeholder Route
 app.get('/health', (req, res) => {
