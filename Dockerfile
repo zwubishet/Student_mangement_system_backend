@@ -1,18 +1,14 @@
-FROM node:20-bullseye-slim
-
-WORKDIR /usr/src/app
-
-# Install dependencies (production). For development, mount source and use npm install locally.
+# Stage 1: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
 COPY package*.json ./
-RUN npm ci --production
+RUN npm install
 
-# Copy app source
+# Stage 2: Run
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client for the runtime environment (ensure prisma client engine is available)
-RUN npx prisma generate || true
-
-EXPOSE 4000
-
-# entrypoint now moved to server.js (contains the Express setup)
-CMD ["node", "server.js"]
+EXPOSE 3003
+CMD ["npm", "run", "dev"]

@@ -16,32 +16,34 @@ export const registerSchoolAndAdmin = async (signupData) => {
       throw new AppError('Email already registered', 400);
     }
 
-    // 2. Create the School (Tenancy Layer)
+    // 2. Create the School
     const schoolRes = await client.query(
       'INSERT INTO tenancy.schools (name, plan, status) VALUES ($1, $2, $3) RETURNING id',
       [schoolName, 'BASIC', 'active']
     );
     const schoolId = schoolRes.rows[0].id;
 
-    // 3. Create the Admin User (Identity Layer)
+    // 3. Create the Admin User (Fixed snake_case columns)
     const hashedPassword = await hashPassword(password);
     const userRes = await client.query(
-      `INSERT INTO identity.users (schoolId, email, passwordHash, firstName, lastName) 
+      `INSERT INTO identity.users (school_id, email, password_hash, first_name, last_name) 
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [schoolId, email, hashedPassword, firstName, lastName]
     );
     const userId = userRes.rows[0].id;
 
-    // 4. Assign "Admin" Role (This assumes you have 'admin' in your identity.roles table)
-    // For a real high-scale app, we'd fetch or seed the role ID here.
+    // 4. Create Admin Role (Fixed school_id)
     const roleRes = await client.query(
-      'INSERT INTO identity.roles (schoolId, name) VALUES ($1, $2) RETURNING id',
+      'INSERT INTO identity.roles (school_id, name) VALUES ($1, $2) RETURNING id',
       [schoolId, 'admin']
     );
     const roleId = roleRes.rows[0].id;
 
+    // 5. Link User to Role (Fixed user_id and role_id if they are snake_case too)
+    // Check your userRoles table, if it's userId/roleId use camelCase, 
+    // but if it's snake_case, change to user_id/role_id below:
     await client.query(
-      'INSERT INTO identity.userRoles (userId, roleId) VALUES ($1, $2)',
+      'INSERT INTO identity.userroles (user_id, role_id) VALUES ($1, $2)',
       [userId, roleId]
     );
 
@@ -63,7 +65,7 @@ export const loginUser = async (email, password) => {
   const userQuery = `
     SELECT u.*, s.status as school_status 
     FROM identity.users u
-    JOIN tenancy.schools s ON u.schoolId = s.id
+    JOIN tenancy.schools s ON u.school_id = s.id
     WHERE u.email = $1
   `;
   const userRes = await query(userQuery, [email]);

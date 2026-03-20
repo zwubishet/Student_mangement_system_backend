@@ -12,7 +12,7 @@ app.use(helmet()); // Sets various HTTP headers for security
 app.use(cors());
 app.use(express.json({ limit: '10kb' })); // Body parser
 
-app.post('/api', mainRouter)
+app.use('/api/v1', mainRouter);
 
 // Placeholder Route
 app.get('/health', (req, res) => {
