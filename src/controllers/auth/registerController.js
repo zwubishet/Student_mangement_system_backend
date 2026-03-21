@@ -4,23 +4,15 @@ import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 
 export const registerSchool = catchAsync(async (req, res, next) => {
-  // 1. Validate Input
-  const { error, value } = signupSchema.validate(req.body);
-  if (error) {
-    return next(new AppError(error.details[0].message, 400));
-  }
+  // Hasura Actions wrap the input in an 'input' object
+  const { input } = req.body;
+  const registrationData = input.object;
 
-  // 2. Call Service (Business Logic)
-  const result = await authService.registerSchoolAndAdmin(value);
+  const result = await authService.registerSchoolAndAdmin(registrationData);
 
-  // 3. Response
-  res.status(201).json({
-    status: 'success',
-    message: 'School and Admin account created successfully',
-    token: result.token,
-    data: {
-      user: result.user,
-      schoolId: result.schoolId
-    }
+  res.json({
+    school_id: result.schoolId,
+    admin_id: result.userId,
+    token: result.token
   });
 });

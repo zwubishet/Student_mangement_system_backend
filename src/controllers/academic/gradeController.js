@@ -3,55 +3,53 @@ import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 
 export const createGradeWithSections = catchAsync(async (req, res, next) => {
-  const { name, level_order, sections } = req.body; // sections = ["A", "B", "C"]
-  const school_id = req.user.schoolId;
-
-  if (!sections || !Array.isArray(sections) || sections.length === 0) {
-    return next(new AppError('Please provide at least one section name.', 400));
-  }
+ const { input, session_variables } = req.body;
+  const { name, level_order, sections } = input.object;
+  
+  const school_id = session_variables['x-hasura-school-id'];
+  if (!school_id) return next(new AppError('Unauthorized', 401));
 
   const client = await getClient();
-
   try {
     await client.query('BEGIN');
 
-    // 1. Insert the Grade
+    // 1. Insert Grade
     const gradeRes = await client.query(
       `INSERT INTO academic.grades (school_id, name, level_order) 
        VALUES ($1, $2, $3) RETURNING id, name`,
       [school_id, name, level_order]
     );
-    const gradeId = gradeRes.rows[0].id;
+    const grade = gradeRes.rows[0];
 
-    // 2. Insert all Sections for this Grade
-    // High-scale: We use map to prepare all insertion promises
-    const sectionPromises = sections.map(sectionName => {
-      return client.query(
-        `INSERT INTO academic.sections (school_id, grade_id, name) 
-         VALUES ($1, $2, $3) RETURNING id, name`,
-        [school_id, gradeId, sectionName]
-      );
-    });
-
-    const sectionsRes = await Promise.all(sectionPromises);
-    const createdSections = sectionsRes.map(r => r.rows[0]);
+    // 2. Insert Sections in Bulk
+    // Using map + Promise.all is great, but for even higher scale, 
+    // you could use a single unnest query, but this works perfectly for 5-10 sections.
+    const createdSections = await Promise.all(
+      sections.map(async (sectionName) => {
+        const sRes = await client.query(
+          `INSERT INTO academic.sections (school_id, grade_id, name) 
+           VALUES ($1, $2, $3) RETURNING id, name`,
+          [school_id, grade.id, sectionName]
+        );
+        return sRes.rows[0];
+      })
+    );
 
     await client.query('COMMIT');
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        grade: gradeRes.rows[0],
-        sections: createdSections
-      }
+    // 3. Match the GradeWithSectionsOutput structure
+    res.json({
+      grade_id: grade.id,
+      grade_name: grade.name,
+      sections: createdSections
     });
+
   } catch (err) {
     await client.query('ROLLBACK');
-    // Handle unique constraint violations (e.g., Grade already exists)
     if (err.code === '23505') {
-      return next(new AppError('A grade or section with this name already exists in your school.', 400));
+      return next(new AppError('Grade or Section already exists.', 400));
     }
-    return next(new AppError('Transaction failed: ' + err.message, 500));
+    return next(new AppError(err.message, 500));
   } finally {
     client.release();
   }

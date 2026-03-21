@@ -4,12 +4,22 @@ import AppError from '../../utils/appError.js';
 import bcrypt from 'bcryptjs';
 
 export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
+  const data = req.body.input ? req.body.input.object : req.body;
+  
   const { 
     email, password, first_name, last_name, gender, 
     date_of_birth, admission_number, section_id, academic_year_id 
-  } = req.body;
-  
-  const school_id = req.user.schoolId;
+  } = data;
+
+  // 2. Get school_id (The "High-Scale" check)
+  // Check Hasura session variables first, then check req.user (from protect middleware)
+  const school_id = req.body.session_variables 
+    ? req.body.session_variables['x-hasura-school-id'] 
+    : (req.user ? req.user.schoolId : null);
+
+  if (!school_id) {
+    return next(new AppError('Unauthorized: School context not found.', 401));
+  }
   const client = await getClient();
 
   try {
@@ -62,12 +72,10 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        student: studentRes.rows[0],
-        enrollment: enrollmentRes.rows[0]
-      }
+    res.json({
+      student_id: student_id,
+      user_id: user_id,
+      enrollment_id: enrollmentRes.rows[0].id
     });
 
   } catch (err) {
@@ -75,7 +83,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
     if (err.code === '23505') {
       return next(new AppError('Email or Admission Number already exists.', 400));
     }
-    return next(new AppError(err.message, 500));
+    return next(new AppError(err.message, 421));
   } finally {
     client.release();
   }

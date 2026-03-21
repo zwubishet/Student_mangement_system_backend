@@ -5,31 +5,30 @@ import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 
 export const logout = catchAsync(async (req, res, next) => {
+  // 1. Get token from forwarded headers
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer')) {
-    return next(new AppError('No token provided', 400));
+    return next(new AppError('No token provided to blacklist.', 400));
   }
 
   const token = authHeader.split(' ')[1];
 
-  // 1. Decode token to get expiration (exp)
+  // 2. Decode to find out when this token was supposed to die
   const decoded = jwt.decode(token);
   if (!decoded || !decoded.exp) {
-    return next(new AppError('Invalid token', 400));
+    return next(new AppError('Invalid token format.', 400));
   }
 
-  // 2. Calculate remaining Time-To-Live (TTL) in seconds
-  const currentTime = Math.floor(Date.now() / 1000);
-  const ttl = decoded.exp - currentTime;
+  // 3. Calculate seconds until natural expiration
+  const ttl = decoded.exp - Math.floor(Date.now() / 1000);
 
   if (ttl > 0) {
-    // 3. Add token to Redis blacklist with the remaining TTL
-    // Key format: blacklist:token_string
+    // 4. Blacklist it in Redis for exactly that long
     await redisClient.setEx(`blacklist:${token}`, ttl, 'true');
   }
 
-  res.status(200).json({
+  res.json({
     status: 'success',
     message: 'Logged out successfully'
   });

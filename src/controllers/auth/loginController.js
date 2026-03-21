@@ -5,18 +5,24 @@ import AppError from '../../utils/appError.js';
 
 export const login = catchAsync(async (req, res, next) => {
   // 1. Validate Input
-  const { error, value } = loginSchema.validate(req.body);
-  if (error) return next(new AppError(error.details[0].message, 400));
+  const { input } = req.body;
+  const { email, password } = input.object;
 
-  // 2. Authenticate via Service
-  const result = await authService.loginUser(value.email, value.password);
+  if (!email || !password) {
+    return next(new AppError('Please provide email and password', 400));
+  }
 
-  // 3. Send Response
-  res.status(200).json({
-    status: 'success',
+  // 2. Call your existing high-scale login logic
+  const result = await authService.loginUser(email, password);
+
+  // 3. Return response exactly matching LoginOutput type
+  res.json({
+    id: result.user.id,
     token: result.token,
-    data: {
-      user: result.user
-    }
+    email: result.user.email,
+    first_name: result.user.firstName, // Check if service uses firstName
+    last_name: result.user.lastName,   // This was the missing field!
+    school_id: result.user.schoolId,
+    roles: result.user.roles
   });
 });

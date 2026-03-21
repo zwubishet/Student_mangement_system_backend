@@ -1,37 +1,71 @@
 type Mutation {
-  loginUser(
-    input: LoginUserInput!
-  ): LoginUserResponse!
+  AssignTeacherAction(
+    object: AssignTeacherInput!
+  ): AssignTeacherOutput
 }
 
 type Mutation {
-  logoutUser(
-    input: LogoutUserInput!
-  ): LogoutUserResponse!
+  CreateAcademicYearAction(
+    object: AcademicYearInput!
+  ): AcademicYearOutput
 }
 
 type Mutation {
-  manageSchool(
-    input: ManageSchoolInput!
-  ): ManageSchoolResponse!
+  CreateClassesBulkAction(
+    object: ClassesBulkInput!
+  ): ClassesBulkOutput
+}
+
+type Mutation {
+  CreateGradeWithSectionsAction(
+    object: GradeWithSectionsInput!
+  ): GradeWithSectionsOutput
+}
+
+type Mutation {
+  CreateSubjectAction(
+    name: String!
+  ): SubjectOutput
+}
+
+type Mutation {
+  CreateTeacherAction(
+    object: TeacherInput!
+  ): TeacherOutput
+}
+
+type Mutation {
+  CreateTermAction(
+    object: TermInput!
+  ): TermOutput
+}
+
+type Mutation {
+  LoginAction(
+    object: LoginInput!
+  ): LoginOutput
+}
+
+type Mutation {
+  RegisterSchoolAction(
+    object: RegisterSchoolInput!
+  ): RegisterSchoolOutput
+}
+
+type Mutation {
+  RegisterStudentEnrollment(
+    object: RegisterStudentInput!
+  ): RegisterStudentOutput
+}
+
+type Mutation {
+  logoutAction: LogoutOutput
 }
 
 type Mutation {
   manageUsers(
     input: ManageUserInput!
   ): ManageUserResponse!
-}
-
-type Mutation {
-  refreshToken(
-    input: RefreshTokenInput!
-  ): RefreshTokenResponse!
-}
-
-type Mutation {
-  registerUser(
-    input: RegisterUserInput!
-  ): RegisterUserResponse!
 }
 
 input ManageUserInput {
@@ -77,6 +111,74 @@ input ManageSchoolInput {
   name: String
   code: String
   address: String
+}
+
+input RegisterStudentInput {
+  email: String!
+  first_name: String!
+  last_name: String!
+  gender: String!
+  date_of_birth: String!
+  admission_number: String!
+  section_id: uuid!
+  academic_year_id: uuid!
+}
+
+input RegisterSchoolInput {
+  school_name: String!
+  school_address: String
+  admin_email: String!
+  admin_password: String!
+  first_name: String!
+  last_name: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input AcademicYearInput {
+  name: String!
+  start_date: date!
+  end_date: date!
+}
+
+input TermInput {
+  academic_year_id: uuid!
+  name: String!
+  start_date: date!
+  end_date: date!
+}
+
+input GradeWithSectionsInput {
+  name: String!
+  level_order: Int!
+  sections: [String!]!
+}
+
+input ClassesBulkInput {
+  academic_year_id: uuid!
+  sections: [ClassSectionInput!]!
+}
+
+input ClassSectionInput {
+  section_id: uuid!
+  capacity: Int
+}
+
+input TeacherInput {
+  first_name: String!
+  last_name: String!
+  email: String!
+  phone: String
+  hire_date: date
+}
+
+input AssignTeacherInput {
+  teacher_user_id: uuid!
+  subject_id: uuid!
+  section_id: uuid!
 }
 
 type ManageUserResponse {
@@ -132,5 +234,82 @@ type SchoolInfo {
   name: String!
   code: String!
   address: String
+}
+
+type RegisterStudentOutput {
+  student_id: uuid!
+  user_id: uuid!
+  enrollment_id: uuid!
+}
+
+type RegisterSchoolOutput {
+  school_id: uuid!
+  admin_id: uuid!
+  token: String!
+}
+
+type LoginOutput {
+  id: uuid!
+  token: String!
+  email: String!
+  first_name: String!
+  last_name: String!
+  school_id: uuid!
+  roles: [String!]!
+}
+
+type LogoutOutput {
+  status: String!
+  message: String!
+}
+
+type AcademicYearOutput {
+  id: uuid!
+  name: String!
+  status: String!
+}
+
+type TermOutput {
+  id: uuid!
+  name: String!
+  academic_year_id: uuid!
+}
+
+type GradeWithSectionsOutput {
+  grade_id: uuid!
+  grade_name: String!
+  sections: [SectionOutput!]!
+}
+
+type SectionOutput {
+  id: uuid!
+  name: String!
+}
+
+type ClassesBulkOutput {
+  results: Int!
+  classes: [ClassOutput!]!
+}
+
+type ClassOutput {
+  id: uuid!
+  section_id: uuid!
+  academic_year_id: uuid!
+  capacity: Int!
+}
+
+type TeacherOutput {
+  teacher_id: uuid!
+  user_id: uuid!
+  email: String!
+}
+
+type SubjectOutput {
+  id: uuid!
+  name: String!
+}
+
+type AssignTeacherOutput {
+  assignment_id: uuid!
 }
 

@@ -16,30 +16,40 @@ export const restrictBlacklisted = catchAsync(async (req, res, next) => {
   next();
 });
 
+// FOR HASURA ACTIONS ONLY
+export const protectAction = catchAsync(async (req, res, next) => {
+  const actionSecret = req.headers['x-hasura-action-secret'];
+  
+  // Debugging tip: console.log(actionSecret, process.env.ACTION_SECRET) 
+  // if you keep getting unauthorized
+  
+  if (!actionSecret || actionSecret !== process.env.ACTION_SECRET) {
+    return next(new AppError('Unauthorized: This endpoint only accepts requests from Hasura.', 401));
+  }
+
+  if (!req.body.session_variables) {
+    return next(new AppError('Unauthorized: Missing session context.', 401));
+  }
+
+  next();
+});
+
+// FOR DIRECT EXPRESS API CALLS (Login, etc)
 export const protect = catchAsync(async (req, res, next) => {
-  // 1. Get token from header
   let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (req.headers.authorization?.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
-  if (!token) {
-    return next(new AppError('You are not logged in. Please log in to get access.', 401));
-  }
-  
- const secret = process.env.ACCESS_TOKEN_SECRET;
+  if (!token) return next(new AppError('Not logged in.', 401));
 
- const decoded = jwt.verify(token, secret);
-
-  // 3. Extract Hasura claims for high-scale multi-tenancy
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   const claims = decoded['https://hasura.io/jwt/claims'];
   
-  // Attach user info to request
   req.user = {
     id: claims['x-hasura-user-id'],
     schoolId: claims['x-hasura-school-id'],
     role: claims['x-hasura-default-role']
   };
-
   next();
 });

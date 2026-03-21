@@ -20,6 +20,7 @@
           - end_date
           - start_date
           - name
+          - status
           - id
           - school_id
         filter:
@@ -44,6 +45,7 @@
           - end_date
           - start_date
           - name
+          - status
           - id
           - school_id
         filter:
@@ -380,9 +382,24 @@
 - table:
     name: permissions
     schema: identity
+  array_relationships:
+    - name: rolepermissions
+      using:
+        foreign_key_constraint_on:
+          column: permission_id
+          table:
+            name: rolepermissions
+            schema: identity
 - table:
     name: rolepermissions
     schema: identity
+  object_relationships:
+    - name: permission
+      using:
+        foreign_key_constraint_on: permission_id
+    - name: role
+      using:
+        foreign_key_constraint_on: role_id
 - table:
     name: roles
     schema: identity
@@ -408,6 +425,13 @@
 - table:
     name: userroles
     schema: identity
+  object_relationships:
+    - name: role
+      using:
+        foreign_key_constraint_on: role_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
 - table:
     name: users
     schema: identity
@@ -525,9 +549,26 @@
 - table:
     name: guardians
     schema: student
+  object_relationships:
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
 - table:
     name: studentenrollments
     schema: student
+  object_relationships:
+    - name: academicyear
+      using:
+        foreign_key_constraint_on: academic_year_id
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -553,6 +594,70 @@
 - table:
     name: students
     schema: student
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  array_relationships:
+    - name: attendances
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: attendance
+            schema: academic
+    - name: attendancesByStudentId
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: attendance
+            schema: operations
+    - name: examresults
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: examresults
+            schema: operations
+    - name: guardians
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: guardians
+            schema: student
+    - name: invoices
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: invoices
+            schema: finance
+    - name: parentstudents
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: parentstudents
+            schema: academic
+    - name: studentenrollments
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: studentenrollments
+            schema: student
+    - name: studentinvoices
+      using:
+        foreign_key_constraint_on:
+          column: student_id
+          table:
+            name: studentinvoices
+            schema: finance
   select_permissions:
     - role: PARENT
       permission:

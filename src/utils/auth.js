@@ -11,6 +11,7 @@ export const generateHasuraToken = (user) => {
     name: `${user.firstName || ''} ${user.lastName || ''}`,
     iat: Math.floor(Date.now() / 1000),
     "https://hasura.io/jwt/claims": {
+      "x-hasura-action-secret": process.env.ACTION_SECRET,
       "x-hasura-allowed-roles": user.roles,
       "x-hasura-default-role": user.roles[0],
       "x-hasura-user-id": user.id.toString(),

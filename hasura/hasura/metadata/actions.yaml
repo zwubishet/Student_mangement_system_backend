@@ -1,49 +1,134 @@
 actions:
-  - name: loginUser
+  - name: AssignTeacherAction
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/login
+      handler: http://app:3003/api/v1/academic/assign-teacher
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
     permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: logoutUser
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateAcademicYearAction
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/logout
+      handler: http://app:3003/api/v1/academic/years
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
     permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: manageSchool
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateClassesBulkAction
     definition:
       kind: synchronous
-      handler: http://app:3003/school/action/manageSchool
+      handler: http://app:3003/api/v1/academic/classes-bulk
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
     permissions:
-      - role: super_admin
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateGradeWithSectionsAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/grades-complex
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateSubjectAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/subjects/register-subject
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateTeacherAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/teachers/register-teacher
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateTermAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/terms
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: LoginAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/auth/login
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: STUDENT
+      - role: TEACHER
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: RegisterSchoolAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/auth/register-school
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+  - name: RegisterStudentEnrollment
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/students/register-enroll
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: logoutAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/auth/logout
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: TEACHER
+      - role: SUPER_ADMIN
+      - role: STUDENT
+      - role: SCHOOL_ADMIN
+      - role: PARENT
   - name: manageUsers
     definition:
       kind: synchronous
       handler: http://app:3003/action/manageUsers
     permissions:
       - role: director
-      - role: super_admin
-  - name: refreshToken
-    definition:
-      kind: synchronous
-      handler: http://app:3003/auth/refresh
-    permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: registerUser
-    definition:
-      kind: synchronous
-      handler: http://app:3003/auth/register
-    permissions:
       - role: super_admin
 custom_types:
   enums: []
@@ -54,6 +139,16 @@ custom_types:
     - name: RefreshTokenInput
     - name: LogoutUserInput
     - name: ManageSchoolInput
+    - name: RegisterStudentInput
+    - name: RegisterSchoolInput
+    - name: LoginInput
+    - name: AcademicYearInput
+    - name: TermInput
+    - name: GradeWithSectionsInput
+    - name: ClassesBulkInput
+    - name: ClassSectionInput
+    - name: TeacherInput
+    - name: AssignTeacherInput
   objects:
     - name: ManageUserResponse
     - name: RegisterUserResponse
@@ -63,4 +158,17 @@ custom_types:
     - name: LogoutUserResponse
     - name: ManageSchoolResponse
     - name: SchoolInfo
+    - name: RegisterStudentOutput
+    - name: RegisterSchoolOutput
+    - name: LoginOutput
+    - name: LogoutOutput
+    - name: AcademicYearOutput
+    - name: TermOutput
+    - name: GradeWithSectionsOutput
+    - name: SectionOutput
+    - name: ClassesBulkOutput
+    - name: ClassOutput
+    - name: TeacherOutput
+    - name: SubjectOutput
+    - name: AssignTeacherOutput
   scalars: []

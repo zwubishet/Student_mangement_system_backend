@@ -4,18 +4,20 @@ import {createTerm} from "../controllers/academic/termController.js";
 import { createGradeWithSections } from '../controllers/academic/gradeController.js';
 import { createClassesBulk } from '../controllers/academic/classController.js';
 import { registerAndEnrollStudent } from '../controllers/academic/studentController.js';
-import { protect } from '../middlewares/authMiddleware.js';
+import { assignTeacher } from '../controllers/academic/assignTeacher.js';
+import { protectAction } from '../middlewares/authMiddleware.js';
 
 
 const router = express.Router();
 
-// All academic routes are protected
-router.use(protect);
-
-router.post('/years', createAcademicYear);
-router.post('/terms', createTerm);
-router.post('/grades-complex', createGradeWithSections);
-router.post('/classes-bulk', createClassesBulk);
-router.post('/students/register-enroll', registerAndEnrollStudent);
-
+router.post('/years', protectAction, createAcademicYear);
+router.post('/terms', protectAction, createTerm);
+router.post('/grades-complex', protectAction, createGradeWithSections);
+router.post('/classes-bulk', protectAction, createClassesBulk);
+router.post('/assign-teacher', protectAction, assignTeacher);
+router.post('/students/register-enroll', protectAction, registerAndEnrollStudent);
 export default router;
+
+
+
+
