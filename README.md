@@ -1,183 +1,94 @@
-# 🎓 Student Management System – Backend
+# 🎓 Student Management System (SMS) – High-Scale Backend
 
-This is the backend for a **student-centered school management system**, built for government primary schools.  
-It powers mobile and web apps for students, teachers, and school directors — securely managing data, access, and academic processes.
-
----
-
-## 🚀 Tech Stack
-
-- **Node.js** & **Express.js** – Web server and routing
-- **PostgreSQL** – Relational database
-- **Prisma ORM** – Schema modeling and queries
-- **Knex.js** – Advanced SQL control (for complex logic)
-- **JWT (JSON Web Tokens)** – Authentication
-- **Bcrypt** – Password hashing
-- **Dotenv** – Environment variable management
+A robust, multi-tenant school management system designed for high-scale academic environments. This backend serves as the "source of truth" for students, teachers, and school directors, utilizing a modern GraphQL-first architecture.
 
 ---
 
-## 📁 Project Structure
+## 🚀 The Modern Stack
 
-```
-
-student-management-backend/
-│
-├── src/
-│   ├── controllers/       # Route logic (Auth, Students, etc.)
-│   ├── routes/            # Express route definitions
-│   ├── middlewares/       # Auth middleware, error handling
-│   ├── services/          # Business logic layer
-│   ├── utils/             # Helper functions (e.g. token generation)
-│   └── app.js             # Express app entry point
-│
-├── config/                # DB and environment configs
-├── prisma/                # Prisma schema and seed script
-├── migrations/            # Prisma migrations
-├── .env                   # Environment variables
-├── package.json
-└── README.md
-
-````
+* **Hasura GraphQL Engine** – High-performance GraphQL Gateway & Real-time API.
+* **Node.js & Express.js** – Dedicated Business Logic layer (Hasura Actions & Webhooks).
+* **PostgreSQL** – Relational database with a multi-schema design (`identity`, `tenancy`, `academic`).
+* **Redis** – High-speed session management and JWT blacklisting (Logout).
+* **JWT (JSON Web Tokens)** – Custom Hasura-compatible claims for granular Role-Based Access Control (RBAC).
+* **Docker & Docker Compose** – Full-stack container orchestration.
+* **Native PG Driver (`pg`)** – High-performance SQL control for complex transactions and bulk operations.
 
 ---
 
-## 🔐 Authentication
+## 🏗 High-Scale Architecture
 
-- Students are **pre-registered** (no public sign-up)
-  (you can use the `/api/auth/register` endpoint during development to
-  insert the first users; once the system is live this should be disabled)
-- Login is handled via:
-  - Student ID + Password
-  - Passwords hashed with Bcrypt
-  - JWT tokens issued on successful login
+This project has moved from a monolith to a **Microservices-ready architecture**:
+
+1.  **Isolation:** Every request is filtered through Hasura using a JWT containing `x-hasura-school-id`.
+2.  **Stateless Logic:** Express handles complex "Actions" (like bulk creation) by pulling security context directly from Hasura session variables.
+3.  **Database Design:**
+    * `identity`: Manages Users, Roles, and Auth.
+    * `tenancy`: Manages Schools and Subscription status.
+    * `academic`: Manages Years, Terms, Grades, Sections, Classes, Teachers, and Subjects.
+
+
 
 ---
 
-## 📚 Core Features (Implemented or In Progress)
+## 🔐 Implemented Hasura Actions
 
-| Feature                        | Status        |
-|-------------------------------|---------------|
-| 🔐 Student Login              | ✅ Done        |
-| 📄 Student Profile (view-only) | ✅ Done        |
-| 📅 Class Schedules            | 🔄 In progress |
-| 📊 Grades & Academic Records  | 🔄 Planned     |
-| 📢 Announcements              | 🔄 Planned     |
-| ✅ Attendance Summary         | 🔄 Planned     |
-| 💬 Student Community Forum    | 🔄 Planned     |
-| 📁 Learning Resources Sharing | 🔄 Planned     |
-| 🧠 AI Academic Insights       | 🔄 Future phase|
+| Action | Logic Type | Description |
+| :--- | :--- | :--- |
+| `loginAction` | Authentication | Authenticates user & returns Hasura-compatible JWT. |
+| `logoutAction` | Redis Security | Instant token invalidation via Redis Blacklist (TTL). |
+| `createAcademicYearAction`| Validation | Creates school years with strict date-range checks. |
+| `createGradeWithSections` | Transactional | Atomic creation of a Grade and all its Sections. |
+| `createClassesBulkAction` | Idempotent | Bulk-activates sections for the year using `ON CONFLICT`. |
+| `createTeacherAction` | Identity Link | Atomic creation of Auth User + Teacher Profile. |
+| `assignTeacherAction` | Multi-Tenant | Links Teacher/Subject/Section with cross-school security. |
 
 ---
 
 ## ⚙️ Getting Started
 
-### 1. Clone the project
-
-```bash
-git clone https://github.com/your-username/student-management-backend.git
-cd student-management-backend
-````
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Set up your environment
-
-Create a `.env` file:
-
+### 1. Environment Configuration
+Create a `.env` file in the root directory:
 ```env
-DATABASE_URL=postgresql://youruser:yourpassword@localhost:5432/yourdb
-JWT_SECRET=your_super_secret_key
+ACTION_SECRET=your_webhook_secret
+HASURA_GRAPHQL_ADMIN_SECRET=admin_secret
+JWT_SECRET=your_jwt_signing_key
+REDIS_URL=redis://redis:6379
+DATABASE_URL=postgres://user:pass@postgres:5432/sms_db
 ```
 
-### 4. Setup Prisma
-
+### 2. Launch the Stack
 ```bash
-npx prisma migrate dev --name init
-npx prisma generate
+docker-compose up --build
 ```
+* **Express Webhooks:** `http://localhost:3003`
+* **Hasura Console:** `http://localhost:8082`
 
-### 5. Seed sample student
-
+### 3. Apply Metadata & Migrations
 ```bash
-node prisma/seed.js
+cd hasura
+hasura migrate apply
+hasura metadata apply
 ```
-
-### 6. Run the server
-
-```bash
-node index.js
-```
-
-Server will run on:
-📍 `http://localhost:3000`
 
 ---
 
-## 📌 API Endpoints (Sample)
+## 🛠 Project Status & Roadmap
 
-| Method | Route                  | Description              |
-| ------ | ---------------------- | ------------------------ |
-| POST   | `/api/auth/login`      | Student login            |
-| POST   | `/api/auth/register`   | Create a new user (dev only) |
-| GET    | `/api/student/profile` | Get profile (JWT needed) |
-| GET    | `/api/schedule`        | Get student schedule     |
-| POST   | `/school/action/manageSchool` | School CRUD actions (super_admin only) |
-
-More routes coming soon as development continues.
-
----
-
-## 🛠 Development Roadmap
-
-* [x] Authentication with Prisma & JWT
-* [ ] Authorization middleware
-* [ ] Role-based access: student / teacher / director
-* [ ] Attendance tracking logic (manual + smart)
-* [ ] Notifications system
-* [ ] Community posts and chat
-* [ ] Telegram bot integration (optional)
-- [ ] Multi‑school support & management service (in progress)
+- [x] **Phase 1: Security** (JWT, Redis Logout, Action Protection)
+- [x] **Phase 2: Academic Infrastructure** (Multi-tenant Years, Grades, Sections)
+- [x] **Phase 3: Staffing** (Teacher Creation, Subject Assignment)
+- [ ] **Phase 4: Students** (Bulk Enrollment, Student Profiles) 🔄 *Current Focus*
+- [ ] **Phase 5: Academic Records** (Attendance, Grading, Exams) 📅 *Next Up*
+- [ ] **Phase 6: Finances** (Fee Management & Invoicing) 🚀 *Future*
 
 ---
 
 ## 👨‍💻 Author
 
 **Wubishet Wudu**
-💼 Full-stack Developer (Flutter + Node.js)
+💼 Full-stack Developer (Flutter + Node.js + Hasura)
 📬 [wubishetwudu1624@gmail.com](mailto:wubishetwudu1624@gmail.com)
+```
 
 ---
-
-
-**Docker & Hasura**
-
-- **Run the full stack locally (Postgres + Hasura + App):** ensure you have Docker and Docker Compose installed, copy `.env.example` to `.env`, then:
-
-```bash
-docker-compose up --build
-```
-
-- **Hasura Console:** open `http://localhost:8080` and use the admin secret from your `.env` (`HASURA_GRAPHQL_ADMIN_SECRET`).
-
-- **Hasura CLI (optional):** install the Hasura CLI to export metadata and capture migrations. See `hasura/README.md` for quick commands.
-
-- **Database backups:** before switching to Hasura migrations, create a DB dump:
-
-```bash
-pg_dump -U <db_user> -h <db_host> -p <db_port> -Fc -f sms_backup.dump <db_name>
-```
-
-- **Migration capture:** when Hasura is connected to the same Postgres that Prisma used, run:
-
-```bash
-hasura migrate create "from-server" --from-server
-hasura migrate apply --all-databases
-hasura metadata export
-```
-
-Keep the `migrations/` and `metadata/` folders under version control after exporting.
