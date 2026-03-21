@@ -49,7 +49,7 @@ export const registerSchoolAndAdmin = async (signupData) => {
 
     await client.query('COMMIT');
 
-    const token = generateHasuraToken({ id: userId, schoolId: schoolId });
+    const token = generateHasuraToken({ id: userId, roles: ['SCHOOL_ADMIN'], schoolId: schoolId });
 
     return { token, user: { id: userId, email, schoolId } };
   } catch (error) {
@@ -72,7 +72,7 @@ export const loginUser = async (email, password) => {
   const user = userRes.rows[0];
 
   // 2. Check if user exists and password is correct
-  if (!user || !(await comparePasswords(password, user.passwordHash))) {
+  if (!user || !(await comparePasswords(password, user.password_hash))) {
     throw new AppError('Incorrect email or password', 401);
   }
 
@@ -85,8 +85,8 @@ export const loginUser = async (email, password) => {
   const rolesQuery = `
     SELECT r.name 
     FROM identity.roles r
-    JOIN identity.userRoles ur ON r.id = ur.roleId
-    WHERE ur.userId = $1
+    JOIN identity.userroles ur ON r.id = ur.role_id
+    WHERE ur.user_id = $1
   `;
   const rolesRes = await query(rolesQuery, [user.id]);
   const roles = rolesRes.rows.map(row => row.name);
@@ -96,7 +96,14 @@ export const loginUser = async (email, password) => {
   }
 
   // 5. Generate Hasura Token with School ID and Roles
-  const token = signToken({ id: user.id, schoolId: user.schoolId }, roles);
+  // Change this line in loginUser:
+  const token = generateHasuraToken({ 
+    id: user.id, 
+    schoolId: user.school_id, // Ensure you use snake_case from DB
+    roles: roles,             // Put roles inside the object
+    firstName: user.first_name, 
+    lastName: user.last_name 
+  });
 
   return {
     token,

@@ -1,5 +1,8 @@
 import express from 'express';
 import  authrouter from './authRoutes.js';
+import academicRouter from './academicRoutes.js';
+import studentRouter from './studentRoutes.js';
+
 
 const mainRouter = express.Router();
 
@@ -13,5 +16,7 @@ const mainRouter = express.Router();
 // router.use('/teachers', teachersRouter);
 
 mainRouter.use('/auth', authrouter);
+mainRouter.use('/academic', academicRouter);
+mainRouter.use('/students', studentRouter);
 
 export default mainRouter;

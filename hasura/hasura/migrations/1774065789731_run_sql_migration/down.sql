@@ -1,0 +1,6 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE academic.grades
+-- ADD COLUMN IF NOT EXISTS level_order INTEGER,
+-- ALTER COLUMN school_id SET NOT NULL,
+-- ALTER COLUMN name SET NOT NULL;

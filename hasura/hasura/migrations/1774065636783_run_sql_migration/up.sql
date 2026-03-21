@@ -1,0 +1,8 @@
+-- Add sorting and grouping to Grades
+ALTER TABLE academic.grades 
+ADD COLUMN IF NOT EXISTS section TEXT,      -- e.g., 'Primary'
+ADD COLUMN IF NOT EXISTS level_order INT;   -- e.g., 1, 2, 3
+
+-- Prevent duplicate grade names in the same school
+ALTER TABLE academic.grades 
+ADD CONSTRAINT unique_grade_per_school UNIQUE (school_id, name);

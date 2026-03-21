@@ -8,17 +8,19 @@ export const comparePasswords = async (pw, hashed) => await bcrypt.compare(pw, h
 export const generateHasuraToken = (user) => {
   const payload = {
     sub: user.id.toString(),
-    name: `${user.firstName} ${user.lastName}`,
+    name: `${user.firstName || ''} ${user.lastName || ''}`,
     iat: Math.floor(Date.now() / 1000),
     "https://hasura.io/jwt/claims": {
-      "x-hasura-allowed-roles": user.roles, // e.g., ["admin", "teacher"]
+      "x-hasura-allowed-roles": user.roles,
       "x-hasura-default-role": user.roles[0],
-      "x-hasura-user-id": user.id,
-      "x-hasura-school-id": user.schoolId
+      "x-hasura-user-id": user.id.toString(),
+      "x-hasura-school-id": user.schoolId.toString()
     }
   };
 
-  return jwt.sign(payload, process.env.HASURA_GRAPHQL_JWT_SECRET, {
+ const secret = process.env.ACCESS_TOKEN_SECRET;
+
+  return jwt.sign(payload, secret, {
     algorithm: 'HS256',
     expiresIn: '1d'
   });

@@ -98,6 +98,10 @@
 - table:
     name: classes
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -115,6 +119,25 @@
 - table:
     name: grades
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  array_relationships:
+    - name: feestructures
+      using:
+        foreign_key_constraint_on:
+          column: grade_id
+          table:
+            name: feestructures
+            schema: finance
+    - name: sections
+      using:
+        foreign_key_constraint_on:
+          column: grade_id
+          table:
+            name: sections
+            schema: academic
 - table:
     name: parents
     schema: academic
@@ -363,12 +386,99 @@
 - table:
     name: roles
     schema: identity
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  array_relationships:
+    - name: rolepermissions
+      using:
+        foreign_key_constraint_on:
+          column: role_id
+          table:
+            name: rolepermissions
+            schema: identity
+    - name: userroles
+      using:
+        foreign_key_constraint_on:
+          column: role_id
+          table:
+            name: userroles
+            schema: identity
 - table:
     name: userroles
     schema: identity
 - table:
     name: users
     schema: identity
+  object_relationships:
+    - name: parent
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: parents
+            schema: academic
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: teacher
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: teachers
+            schema: academic
+  array_relationships:
+    - name: attendancesessions
+      using:
+        foreign_key_constraint_on:
+          column: teacher_id
+          table:
+            name: attendancesessions
+            schema: operations
+    - name: auditlogs
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: auditlogs
+            schema: infrastructure
+    - name: files
+      using:
+        foreign_key_constraint_on:
+          column: uploaded_by
+          table:
+            name: files
+            schema: infrastructure
+    - name: homeworks
+      using:
+        foreign_key_constraint_on:
+          column: teacher_id
+          table:
+            name: homeworks
+            schema: operations
+    - name: students
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: students
+            schema: student
+    - name: teacherassignments
+      using:
+        foreign_key_constraint_on:
+          column: teacher_id
+          table:
+            name: teacherassignments
+            schema: academic
+    - name: userroles
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: userroles
+            schema: identity
 - table:
     name: auditlogs
     schema: infrastructure
