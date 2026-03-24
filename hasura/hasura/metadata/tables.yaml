@@ -1,6 +1,32 @@
 - table:
     name: academicyears
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  array_relationships:
+    - name: classes
+      using:
+        foreign_key_constraint_on:
+          column: academic_year_id
+          table:
+            name: classes
+            schema: academic
+    - name: studentenrollments
+      using:
+        foreign_key_constraint_on:
+          column: academic_year_id
+          table:
+            name: studentenrollments
+            schema: student
+    - name: terms
+      using:
+        foreign_key_constraint_on:
+          column: academic_year_id
+          table:
+            name: terms
+            schema: academic
   select_permissions:
     - role: PARENT
       permission:
@@ -48,9 +74,7 @@
           - status
           - id
           - school_id
-        filter:
-          school_id:
-            _eq: X-Hasura-School-Id
+        filter: {}
         allow_aggregations: true
     - role: TEACHER
       permission:
@@ -67,6 +91,16 @@
 - table:
     name: attendance
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -101,9 +135,15 @@
     name: classes
     schema: academic
   object_relationships:
+    - name: academicyear
+      using:
+        foreign_key_constraint_on: academic_year_id
     - name: school
       using:
         foreign_key_constraint_on: school_id
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -143,9 +183,34 @@
 - table:
     name: parents
     schema: academic
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  array_relationships:
+    - name: parentstudents
+      using:
+        foreign_key_constraint_on:
+          column: parent_id
+          table:
+            name: parentstudents
+            schema: academic
 - table:
     name: parentstudents
     schema: academic
+  object_relationships:
+    - name: parent
+      using:
+        foreign_key_constraint_on: parent_id
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
 - table:
     name: sections
     schema: academic
@@ -153,6 +218,9 @@
     - name: grade
       using:
         foreign_key_constraint_on: grade_id
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
   array_relationships:
     - name: attendances
       using:
@@ -168,6 +236,13 @@
           table:
             name: attendancesessions
             schema: operations
+    - name: classes
+      using:
+        foreign_key_constraint_on:
+          column: section_id
+          table:
+            name: classes
+            schema: academic
     - name: homeworks
       using:
         foreign_key_constraint_on:
@@ -361,6 +436,30 @@
           table:
             name: exams
             schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - academic_year_id
+          - id
+        filter:
+          academicyear:
+            school_id:
+              _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - academic_year_id
+          - id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: feestructureitems
     schema: finance
@@ -515,21 +614,93 @@
 - table:
     name: attendance
     schema: operations
+  object_relationships:
+    - name: attendancesession
+      using:
+        foreign_key_constraint_on: session_id
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
 - table:
     name: attendancesessions
     schema: operations
+  object_relationships:
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
+    - name: subject
+      using:
+        foreign_key_constraint_on: subject_id
+    - name: user
+      using:
+        foreign_key_constraint_on: teacher_id
+  array_relationships:
+    - name: attendances
+      using:
+        foreign_key_constraint_on:
+          column: session_id
+          table:
+            name: attendance
+            schema: operations
 - table:
     name: examresults
     schema: operations
+  object_relationships:
+    - name: examsubject
+      using:
+        foreign_key_constraint_on: exam_subject_id
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
 - table:
     name: exams
     schema: operations
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+    - name: term
+      using:
+        foreign_key_constraint_on: term_id
+  array_relationships:
+    - name: examsubjects
+      using:
+        foreign_key_constraint_on:
+          column: exam_id
+          table:
+            name: examsubjects
+            schema: operations
 - table:
     name: examsubjects
     schema: operations
+  object_relationships:
+    - name: exam
+      using:
+        foreign_key_constraint_on: exam_id
+    - name: subject
+      using:
+        foreign_key_constraint_on: subject_id
+  array_relationships:
+    - name: examresults
+      using:
+        foreign_key_constraint_on:
+          column: exam_subject_id
+          table:
+            name: examresults
+            schema: operations
 - table:
     name: homeworks
     schema: operations
+  object_relationships:
+    - name: section
+      using:
+        foreign_key_constraint_on: section_id
+    - name: subject
+      using:
+        foreign_key_constraint_on: subject_id
+    - name: user
+      using:
+        foreign_key_constraint_on: teacher_id
   select_permissions:
     - role: PARENT
       permission:

@@ -17,6 +17,12 @@ type Mutation {
 }
 
 type Mutation {
+  CreateExamAction(
+    object: ExamInput!
+  ): ExamOutput
+}
+
+type Mutation {
   CreateGradeWithSectionsAction(
     object: GradeWithSectionsInput!
   ): GradeWithSectionsOutput
@@ -41,6 +47,13 @@ type Mutation {
 }
 
 type Mutation {
+  ExamSubjectsAction(
+    exam_id: uuid!
+    subjects: [ExamSubjectInput!]!
+  ): ExamSubjectOutput
+}
+
+type Mutation {
   LoginAction(
     object: LoginInput!
   ): LoginOutput
@@ -56,6 +69,13 @@ type Mutation {
   RegisterStudentEnrollment(
     object: RegisterStudentInput!
   ): RegisterStudentOutput
+}
+
+type Mutation {
+  SubmitExamResultsAction(
+    exam_subject_id: uuid!
+    results: [ExamResultInput!]!
+  ): ExamResultsOutput
 }
 
 type Mutation {
@@ -179,6 +199,22 @@ input AssignTeacherInput {
   teacher_user_id: uuid!
   subject_id: uuid!
   section_id: uuid!
+}
+
+input ExamInput {
+  name: String!
+  term_id: uuid!
+  weightage: Int
+}
+
+input ExamSubjectInput {
+  subject_id: uuid!
+  max_score: Int!
+}
+
+input ExamResultInput {
+  student_id: uuid!
+  score: Float!
 }
 
 type ManageUserResponse {
@@ -311,5 +347,19 @@ type SubjectOutput {
 
 type AssignTeacherOutput {
   assignment_id: uuid!
+}
+
+type ExamOutput {
+  id: uuid!
+  name: String!
+}
+
+type ExamSubjectOutput {
+  affected_rows: Int!
+  message: String
+}
+
+type ExamResultsOutput {
+  status: String!
 }
 

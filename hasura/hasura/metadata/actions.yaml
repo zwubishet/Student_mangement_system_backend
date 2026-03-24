@@ -32,6 +32,17 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: CreateExamAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/create-exam
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: CreateGradeWithSectionsAction
     definition:
       kind: synchronous
@@ -76,6 +87,17 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: ExamSubjectsAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/add-exam-subjects
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: LoginAction
     definition:
       kind: synchronous
@@ -107,6 +129,18 @@ actions:
         - name: x-hasura-action-secret
           value: supersecret
     permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: SubmitExamResultsAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/submit-exam-results
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: TEACHER
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
   - name: logoutAction
@@ -149,6 +183,9 @@ custom_types:
     - name: ClassSectionInput
     - name: TeacherInput
     - name: AssignTeacherInput
+    - name: ExamInput
+    - name: ExamSubjectInput
+    - name: ExamResultInput
   objects:
     - name: ManageUserResponse
     - name: RegisterUserResponse
@@ -171,4 +208,7 @@ custom_types:
     - name: TeacherOutput
     - name: SubjectOutput
     - name: AssignTeacherOutput
+    - name: ExamOutput
+    - name: ExamSubjectOutput
+    - name: ExamResultsOutput
   scalars: []

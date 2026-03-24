@@ -1,0 +1,5 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE operations.examsubjects
+-- ADD CONSTRAINT examsubjects_exam_id_subject_id_key
+-- UNIQUE (exam_id, subject_id);

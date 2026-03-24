@@ -7,7 +7,12 @@
   "scripts": {
     "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
     "start": "node server.js",
-    "test": "jest"
+    "test": "jest",
+    "up": "docker-compose up -d",
+    "down": "docker-compose down",
+    "app:log": "docker-compose logs -f app",
+    "hasura:log": "docker-compose logs -f hasura"
+
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
