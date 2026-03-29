@@ -9,6 +9,8 @@ import { protectAction } from '../middlewares/authMiddleware.js';
 import {handleCreateExamAction} from '../controllers/academic/createExam.js'
 import {handleSetupExamSubjectsAction} from '../controllers/academic/addExamSubjects.js';
 import {handleSubmitExamResultsAction} from '../controllers/academic/examResult.js';
+import { handleRegisterParentAction } from '../controllers/academic/registerParentAction.js';
+import { handleCalculateTermResults } from '../controllers/academic/calculateTermResults.js';
 
 
 const router = express.Router();
@@ -22,6 +24,8 @@ router.post('/students/register-enroll', protectAction, registerAndEnrollStudent
 router.post('/create-exam', protectAction, handleCreateExamAction )
 router.post('/add-exam-subjects', protectAction, handleSetupExamSubjectsAction);
 router.post('/submit-exam-results', protectAction, handleSubmitExamResultsAction);
+router.post('/register-parent', protectAction, handleRegisterParentAction);
+router.post('/calculate-term-results', protectAction, handleCalculateTermResults);
 
 export default router;
 

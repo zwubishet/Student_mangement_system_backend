@@ -10,10 +10,32 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: CalculateTermResults
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/calculate-term-results
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: CreateAcademicYearAction
     definition:
       kind: synchronous
       handler: http://app:3003/api/v1/academic/years
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateAnnouncementAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/operations/announcements
       forward_client_headers: true
       headers:
         - name: x-hasura-action-secret
@@ -110,6 +132,17 @@ actions:
       - role: TEACHER
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: RegisterParentAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/register-parent
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: RegisterSchoolAction
     definition:
       kind: synchronous
@@ -186,6 +219,7 @@ custom_types:
     - name: ExamInput
     - name: ExamSubjectInput
     - name: ExamResultInput
+    - name: ParentInput
   objects:
     - name: ManageUserResponse
     - name: RegisterUserResponse
@@ -211,4 +245,7 @@ custom_types:
     - name: ExamOutput
     - name: ExamSubjectOutput
     - name: ExamResultsOutput
+    - name: ParentOutput
+    - name: AnnouncementOutput
+    - name: TermResultOutput
   scalars: []

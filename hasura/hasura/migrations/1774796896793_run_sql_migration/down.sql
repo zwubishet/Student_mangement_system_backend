@@ -1,0 +1,15 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- -- 1. For Role Check (school_id + name)
+-- ALTER TABLE identity.roles
+-- ADD CONSTRAINT roles_name_school_id_key UNIQUE (name, school_id);
+--
+-- -- 2. For User Upsert (phone is the global identity)
+-- -- Note: Ensure phone doesn't already have a unique constraint before running this
+-- ALTER TABLE identity.users
+-- ADD CONSTRAINT users_phone_key UNIQUE (phone);
+--
+--
+-- -- 4. For Parent Profile (user + school)
+-- ALTER TABLE academic.parents
+-- ADD CONSTRAINT parent_user_id_school_id_key UNIQUE (user_id, school_id);

@@ -422,6 +422,9 @@
                 _eq: X-Hasura-User-Id
         allow_aggregations: true
 - table:
+    name: term_summaries
+    schema: academic
+- table:
     name: terms
     schema: academic
   object_relationships:
@@ -611,6 +614,9 @@
 - table:
     name: notifications
     schema: infrastructure
+- table:
+    name: announcements
+    schema: operations
 - table:
     name: attendance
     schema: operations

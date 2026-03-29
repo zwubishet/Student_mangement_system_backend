@@ -5,9 +5,24 @@ type Mutation {
 }
 
 type Mutation {
+  CalculateTermResults(
+    term_id: uuid!
+  ): TermResultOutput
+}
+
+type Mutation {
   CreateAcademicYearAction(
     object: AcademicYearInput!
   ): AcademicYearOutput
+}
+
+type Mutation {
+  CreateAnnouncementAction(
+    title: String!
+    content: String!
+    target_role: String
+    priority: String
+  ): AnnouncementOutput
 }
 
 type Mutation {
@@ -57,6 +72,12 @@ type Mutation {
   LoginAction(
     object: LoginInput!
   ): LoginOutput
+}
+
+type Mutation {
+  RegisterParentAction(
+    object: ParentInput!
+  ): ParentOutput
 }
 
 type Mutation {
@@ -217,6 +238,16 @@ input ExamResultInput {
   score: Float!
 }
 
+input ParentInput {
+  first_name: String!
+  last_name: String!
+  email: String
+  phone: String!
+  password: String
+  relationship: String
+  student_ids: [uuid!]!
+}
+
 type ManageUserResponse {
   success: Boolean!
   message: String!
@@ -361,5 +392,21 @@ type ExamSubjectOutput {
 
 type ExamResultsOutput {
   status: String!
+}
+
+type ParentOutput {
+  parent_id: uuid!
+  user_id: uuid!
+  links_created: Int!
+}
+
+type AnnouncementOutput {
+  id: uuid!
+  status: String!
+}
+
+type TermResultOutput {
+  processed_students: Int!
+  message: String!
 }
 

@@ -11,7 +11,8 @@
     "up": "docker-compose up -d",
     "down": "docker-compose down",
     "app:log": "docker-compose logs -f app",
-    "hasura:log": "docker-compose logs -f hasura"
+    "hasura:log": "docker-compose logs -f hasura",
+    "console": "hasura console --project hasura --admin-secret supersecret --endpoint http://localhost:8082"
 
   },
   "devDependencies": {

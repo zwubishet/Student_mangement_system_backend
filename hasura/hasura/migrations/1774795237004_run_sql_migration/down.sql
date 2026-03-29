@@ -1,0 +1,5 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE academic.parentstudents
+-- ADD CONSTRAINT parent_student_unique_key
+-- UNIQUE (parent_id, student_id);
