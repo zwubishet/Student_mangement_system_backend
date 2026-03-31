@@ -15,6 +15,8 @@ export const login = catchAsync(async (req, res, next) => {
   // 2. Call your existing high-scale login logic
   const result = await authService.loginUser(email, password);
 
+  console.log('Login result:', result); // Debugging log
+
   // 3. Return response exactly matching LoginOutput type
   res.json({
     id: result.user.id,

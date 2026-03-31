@@ -198,6 +198,35 @@
           table:
             name: parentstudents
             schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - email
+          - first_name
+          - last_name
+          - phone
+          - relationship
+          - created_at
+          - id
+          - school_id
+          - user_id
+        filter: {}
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - email
+          - first_name
+          - last_name
+          - phone
+          - relationship
+          - created_at
+          - id
+          - school_id
+          - user_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: parentstudents
     schema: academic
@@ -211,6 +240,17 @@
     - name: student
       using:
         foreign_key_constraint_on: student_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - created_at
+          - id
+          - parent_id
+          - school_id
+          - student_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: sections
     schema: academic
@@ -264,6 +304,27 @@
           table:
             name: teacherassignments
             schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - name
+          - grade_id
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - name
+          - grade_id
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: subjects
     schema: academic
@@ -605,6 +666,22 @@
           table:
             name: userroles
             schema: identity
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - email
+          - first_name
+          - last_name
+          - password_hash
+          - phone
+          - status
+          - created_at
+          - updated_at
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: auditlogs
     schema: infrastructure
@@ -730,6 +807,19 @@
     name: schedules
     schema: operations
 - table:
+    name: dashboard_stats
+    schema: public
+  select_permissions:
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - class_count
+          - student_count
+          - teacher_count
+          - id
+        filter: {}
+        allow_aggregations: true
+- table:
     name: guardians
     schema: student
   object_relationships:
@@ -756,8 +846,11 @@
     - role: SCHOOL_ADMIN
       permission:
         columns:
+          - status
+          - enrolled_at
           - academic_year_id
           - id
+          - school_id
           - section_id
           - student_id
         filter:
@@ -768,8 +861,11 @@
     - role: SUPER_ADMIN
       permission:
         columns:
+          - status
+          - enrolled_at
           - academic_year_id
           - id
+          - school_id
           - section_id
           - student_id
         filter: {}
@@ -865,8 +961,10 @@
           - first_name
           - gender
           - last_name
+          - status
           - id
           - school_id
+          - user_id
         filter:
           school_id:
             _eq: X-Hasura-School-Id
@@ -879,8 +977,10 @@
           - first_name
           - gender
           - last_name
+          - status
           - id
           - school_id
+          - user_id
         filter:
           _and:
             - school_id:
@@ -896,8 +996,10 @@
           - first_name
           - gender
           - last_name
+          - status
           - id
           - school_id
+          - user_id
         filter: {}
         allow_aggregations: true
     - role: TEACHER
@@ -908,8 +1010,10 @@
           - first_name
           - gender
           - last_name
+          - status
           - id
           - school_id
+          - user_id
         filter:
           _and:
             - school_id:

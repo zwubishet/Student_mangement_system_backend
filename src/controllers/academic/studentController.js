@@ -24,7 +24,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
           c.capacity, 
           COUNT(e.id) as current_enrollment
        FROM academic.classes c
-       LEFT JOIN academic.studentenrollments e ON c.section_id = e.section_id AND c.academic_year_id = e.academic_year_id
+       LEFT JOIN student.studentenrollments e ON c.section_id = e.section_id AND c.academic_year_id = e.academic_year_id
        WHERE c.section_id = $1 AND c.academic_year_id = $2 AND c.school_id = $3
        GROUP BY c.capacity`,
       [section_id, academic_year_id, school_id]
@@ -58,7 +58,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
 
     // 4. PROFILE: Create Student record
     const studentRes = await client.query(
-      `INSERT INTO academic.students (school_id, user_id, admission_number, first_name, last_name, gender, date_of_birth)
+      `INSERT INTO student.students (school_id, user_id, admission_number, first_name, last_name, gender, date_of_birth)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [school_id, userId, admission_number, first_name, last_name, gender, date_of_birth]
     );
@@ -66,7 +66,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
 
     // 5. ENROLLMENT: Finalize
     const enrollmentRes = await client.query(
-      `INSERT INTO academic.studentenrollments (school_id, student_id, section_id, academic_year_id, status)
+      `INSERT INTO student.studentenrollments (school_id, student_id, section_id, academic_year_id, status)
        VALUES ($1, $2, $3, $4, 'active') RETURNING id`,
       [school_id, studentId, section_id, academic_year_id]
     );
