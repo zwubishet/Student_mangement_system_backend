@@ -1,0 +1,31 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- -- 1. Define the Days of the week (Lookup Table)
+-- CREATE TABLE operations.days (
+--   id integer PRIMARY KEY, -- 1 to 7
+--   day_name text NOT NULL UNIQUE
+-- );
+--
+-- INSERT INTO operations.days (id, day_name) VALUES
+-- (1, 'Monday'), (2, 'Tuesday'), (3, 'Wednesday'), (4, 'Thursday'), (5, 'Friday'), (6, 'Saturday'), (7, 'Sunday');
+--
+-- -- 2. The Main Schedule Table
+-- CREATE TABLE operations.schedules (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   school_id uuid NOT NULL REFERENCES tenancy.schools(id) ON DELETE CASCADE,
+--   section_id uuid NOT NULL REFERENCES academic.sections(id) ON DELETE CASCADE,
+--   subject_id uuid NOT NULL REFERENCES academic.subjects(id) ON DELETE CASCADE,
+--   teacher_id uuid NOT NULL REFERENCES identity.users(id), -- The teacher assigned
+--   day_id integer REFERENCES operations.days(id),
+--   start_time time NOT NULL, -- e.g., '08:00:00'
+--   end_time time NOT NULL,   -- e.g., '08:45:00'
+--   room_number text,         -- Optional: which physical room?
+--
+--   -- CONSTRAINT: A teacher cannot be in two places at once
+--   UNIQUE (school_id, teacher_id, day_id, start_time),
+--
+--   -- CONSTRAINT: A section (class) cannot have two subjects at the same time
+--   UNIQUE (school_id, section_id, day_id, start_time)
+-- );
+--
+-- CREATE INDEX idx_schedule_section ON operations.schedules(section_id, day_id);

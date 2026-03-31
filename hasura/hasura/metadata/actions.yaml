@@ -76,6 +76,17 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: CreateScheduleSlot
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/operations/schedule-slots
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: CreateSubjectAction
     definition:
       kind: synchronous
@@ -220,6 +231,7 @@ custom_types:
     - name: ExamSubjectInput
     - name: ExamResultInput
     - name: ParentInput
+    - name: ScheduleInput
   objects:
     - name: ManageUserResponse
     - name: RegisterUserResponse
@@ -248,4 +260,5 @@ custom_types:
     - name: ParentOutput
     - name: AnnouncementOutput
     - name: TermResultOutput
+    - name: ScheduleOutput
   scalars: []

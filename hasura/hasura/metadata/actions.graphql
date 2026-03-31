@@ -44,6 +44,12 @@ type Mutation {
 }
 
 type Mutation {
+  CreateScheduleSlot(
+    input: ScheduleInput!
+  ): ScheduleOutput
+}
+
+type Mutation {
   CreateSubjectAction(
     name: String!
   ): SubjectOutput
@@ -248,6 +254,16 @@ input ParentInput {
   student_ids: [uuid!]!
 }
 
+input ScheduleInput {
+  section_id: uuid!
+  subject_id: uuid!
+  teacher_id: uuid!
+  day_id: Int!
+  start_time: String!
+  end_time: String!
+  room_number: String
+}
+
 type ManageUserResponse {
   success: Boolean!
   message: String!
@@ -408,5 +424,10 @@ type AnnouncementOutput {
 type TermResultOutput {
   processed_students: Int!
   message: String!
+}
+
+type ScheduleOutput {
+  id: uuid
+  status: String
 }
 

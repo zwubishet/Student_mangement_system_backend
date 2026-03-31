@@ -649,6 +649,9 @@
             name: attendance
             schema: operations
 - table:
+    name: days
+    schema: operations
+- table:
     name: examresults
     schema: operations
   object_relationships:
@@ -723,6 +726,9 @@
             - teacher_id:
                 _eq: X-Hasura-Teacher-Id
         allow_aggregations: true
+- table:
+    name: schedules
+    schema: operations
 - table:
     name: guardians
     schema: student
