@@ -148,15 +148,32 @@
     - role: SCHOOL_ADMIN
       permission:
         columns:
+          - capacity
           - grade_level
           - description
           - name
           - created_at
+          - academic_year_id
           - id
           - school_id
+          - section_id
         filter:
           school_id:
             _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - capacity
+          - grade_level
+          - description
+          - name
+          - created_at
+          - academic_year_id
+          - id
+          - school_id
+          - section_id
+        filter: {}
         allow_aggregations: true
 - table:
     name: grades
@@ -180,6 +197,31 @@
           table:
             name: sections
             schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - level_order
+          - name
+          - section
+          - id
+          - school_id
+          - section_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - level_order
+          - name
+          - section
+          - id
+          - school_id
+          - section_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: parents
     schema: academic
@@ -810,6 +852,15 @@
     name: dashboard_stats
     schema: public
   select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - class_count
+          - student_count
+          - teacher_count
+          - id
+        filter: {}
+        allow_aggregations: true
     - role: SUPER_ADMIN
       permission:
         columns:
@@ -855,8 +906,8 @@
           - student_id
         filter:
           _and:
-            - student_id:
-                _eq: X-Hasura-Student-Id
+            - school_id:
+                _eq: X-Hasura-School-Id
         allow_aggregations: true
     - role: SUPER_ADMIN
       permission:

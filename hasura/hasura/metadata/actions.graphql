@@ -169,6 +169,7 @@ input RegisterStudentInput {
   admission_number: String!
   section_id: uuid!
   academic_year_id: uuid!
+  password: String
 }
 
 input RegisterSchoolInput {

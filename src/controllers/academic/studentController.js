@@ -16,6 +16,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
+    console.log(`Attempting to enroll student in section ${section_id} for academic year ${academic_year_id} at school ${school_id}`);
 
     // 1. HIGH-SCALE CAPACITY CHECK
     // We join the 'classes' table (where capacity is stored) with 'studentenrollments'
@@ -29,7 +30,7 @@ export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
        GROUP BY c.capacity`,
       [section_id, academic_year_id, school_id]
     );
-
+    
     if (capacityCheck.rows.length === 0) {
       throw new Error('This class/section has not been activated for this academic year.');
     }
