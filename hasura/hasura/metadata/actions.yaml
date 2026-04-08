@@ -120,6 +120,17 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: EnrollStudentWithCheck
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/academic/enroll-student-with-check
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
   - name: ExamSubjectsAction
     definition:
       kind: synchronous
@@ -232,6 +243,7 @@ custom_types:
     - name: ExamResultInput
     - name: ParentInput
     - name: ScheduleInput
+    - name: EnrollStudentInput
   objects:
     - name: ManageUserResponse
     - name: RegisterUserResponse
@@ -261,4 +273,5 @@ custom_types:
     - name: AnnouncementOutput
     - name: TermResultOutput
     - name: ScheduleOutput
+    - name: EnrollmentResponse
   scalars: []

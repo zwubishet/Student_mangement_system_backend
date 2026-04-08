@@ -11,6 +11,7 @@ import {handleSetupExamSubjectsAction} from '../controllers/academic/addExamSubj
 import {handleSubmitExamResultsAction} from '../controllers/academic/examResult.js';
 import { handleRegisterParentAction } from '../controllers/academic/registerParentAction.js';
 import { handleCalculateTermResults } from '../controllers/academic/calculateTermResults.js';
+import { enrollStudentWithCheck } from '../controllers/academic/enrollStudentWithCheck.js';
 
 
 const router = express.Router();
@@ -26,6 +27,7 @@ router.post('/add-exam-subjects', protectAction, handleSetupExamSubjectsAction);
 router.post('/submit-exam-results', protectAction, handleSubmitExamResultsAction);
 router.post('/register-parent', protectAction, handleRegisterParentAction);
 router.post('/calculate-term-results', protectAction, handleCalculateTermResults);
+router.post('/enroll-student-with-check', protectAction, enrollStudentWithCheck);
 
 export default router;
 

@@ -148,13 +148,12 @@
     - role: SCHOOL_ADMIN
       permission:
         columns:
-          - capacity
-          - grade_level
-          - description
-          - name
-          - created_at
           - academic_year_id
+          - capacity
+          - created_at
+          - description
           - id
+          - name
           - school_id
           - section_id
         filter:
@@ -164,13 +163,12 @@
     - role: SUPER_ADMIN
       permission:
         columns:
-          - capacity
-          - grade_level
-          - description
-          - name
-          - created_at
           - academic_year_id
+          - capacity
+          - created_at
+          - description
           - id
+          - name
           - school_id
           - section_id
         filter: {}
@@ -459,6 +457,28 @@
     - name: user
       using:
         foreign_key_constraint_on: teacher_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - id
+          - section_id
+          - subject_id
+          - teacher_id
+        filter:
+          user:
+            school_id:
+              _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - id
+          - section_id
+          - subject_id
+          - teacher_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: teachers
     schema: academic
@@ -627,6 +647,25 @@
           table:
             name: userroles
             schema: identity
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - name
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: userroles
     schema: identity
@@ -637,6 +676,26 @@
     - name: user
       using:
         foreign_key_constraint_on: user_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - id
+          - role_id
+          - user_id
+        filter:
+          user:
+            school_id:
+              _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - id
+          - role_id
+          - user_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: users
     schema: identity
@@ -992,13 +1051,16 @@
     - role: PARENT
       permission:
         columns:
-          - date_of_birth
-          - admission_number
-          - first_name
-          - gender
-          - last_name
           - id
           - school_id
+          - admission_number
+          - first_name
+          - last_name
+          - gender
+          - date_of_birth
+          - user_id
+          - status
+          - created_at
         filter:
           _and:
             - school_id:
@@ -1013,6 +1075,7 @@
           - gender
           - last_name
           - status
+          - created_at
           - id
           - school_id
           - user_id
@@ -1029,6 +1092,7 @@
           - gender
           - last_name
           - status
+          - created_at
           - id
           - school_id
           - user_id
@@ -1048,6 +1112,7 @@
           - gender
           - last_name
           - status
+          - created_at
           - id
           - school_id
           - user_id
@@ -1062,6 +1127,7 @@
           - gender
           - last_name
           - status
+          - created_at
           - id
           - school_id
           - user_id

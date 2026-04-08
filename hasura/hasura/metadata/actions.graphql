@@ -68,6 +68,12 @@ type Mutation {
 }
 
 type Mutation {
+  EnrollStudentWithCheck(
+    object: EnrollStudentInput!
+  ): EnrollmentResponse
+}
+
+type Mutation {
   ExamSubjectsAction(
     exam_id: uuid!
     subjects: [ExamSubjectInput!]!
@@ -207,11 +213,12 @@ input GradeWithSectionsInput {
 
 input ClassesBulkInput {
   academic_year_id: uuid!
+  grade_name: String!
   sections: [ClassSectionInput!]!
 }
 
 input ClassSectionInput {
-  section_id: uuid!
+  section_name: String!
   capacity: Int
 }
 
@@ -263,6 +270,12 @@ input ScheduleInput {
   start_time: String!
   end_time: String!
   room_number: String
+}
+
+input EnrollStudentInput {
+  student_id: uuid!
+  section_id: uuid!
+  academic_year_id: uuid!
 }
 
 type ManageUserResponse {
@@ -377,8 +390,7 @@ type ClassesBulkOutput {
 
 type ClassOutput {
   id: uuid!
-  section_id: uuid!
-  academic_year_id: uuid!
+  name: String!
   capacity: Int!
 }
 
@@ -430,5 +442,11 @@ type TermResultOutput {
 type ScheduleOutput {
   id: uuid
   status: String
+}
+
+type EnrollmentResponse {
+  success: Boolean!
+  message: String!
+  enrollment_id: uuid
 }
 
