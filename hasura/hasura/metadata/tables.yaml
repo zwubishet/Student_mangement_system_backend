@@ -101,6 +101,27 @@
     - name: student
       using:
         foreign_key_constraint_on: student_id
+  insert_permissions:
+    - role: TEACHER
+      permission:
+        check:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - section:
+                teacherassignments:
+                  user:
+                    id:
+                      _eq: X-Hasura-User-Id
+        columns:
+          - created_at
+          - date
+          - id
+          - marked_by
+          - school_id
+          - section_id
+          - status
+          - student_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -131,6 +152,57 @@
           - student_id
         filter: {}
         allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - date
+          - status
+          - created_at
+          - id
+          - marked_by
+          - school_id
+          - section_id
+          - student_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - section:
+                teacherassignments:
+                  user:
+                    id:
+                      _eq: X-Hasura-User-Id
+        allow_aggregations: true
+        query_root_fields:
+          - select_aggregate
+          - select
+          - select_by_pk
+        subscription_root_fields:
+          - select_aggregate
+          - select
+          - select_by_pk
+  update_permissions:
+    - role: TEACHER
+      permission:
+        columns:
+          - created_at
+          - date
+          - id
+          - marked_by
+          - school_id
+          - section_id
+          - status
+          - student_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - section:
+                teacherassignments:
+                  user:
+                    id:
+                      _eq: X-Hasura-User-Id
+        check: null
 - table:
     name: classes
     schema: academic
@@ -219,6 +291,25 @@
           - school_id
           - section_id
         filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - level_order
+          - name
+          - section
+          - id
+          - school_id
+          - section_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - sections:
+                teacherassignments:
+                  user:
+                    id:
+                      _eq: X-Hasura-User-Id
         allow_aggregations: true
 - table:
     name: parents
@@ -365,6 +456,22 @@
           - school_id
         filter: {}
         allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - name
+          - grade_id
+          - id
+          - school_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - teacherassignments:
+                user:
+                  id:
+                    _eq: X-Hasura-User-Id
+        allow_aggregations: true
 - table:
     name: subjects
     schema: academic
@@ -442,7 +549,7 @@
                 _eq: X-Hasura-School-Id
             - teacherassignments:
                 teacher_id:
-                  _eq: X-Hasura-Teacher-Id
+                  _eq: X-Hasura-User-Id
         allow_aggregations: true
 - table:
     name: teacherassignments
@@ -478,6 +585,22 @@
           - subject_id
           - teacher_id
         filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - id
+          - section_id
+          - subject_id
+          - teacher_id
+        filter:
+          _and:
+            - user:
+                school_id:
+                  _eq: X-Hasura-School-Id
+            - user:
+                id:
+                  _eq: X-Hasura-User-Id
         allow_aggregations: true
 - table:
     name: teachers
@@ -539,8 +662,6 @@
           _and:
             - school_id:
                 _eq: X-Hasura-School-Id
-            - id:
-                _eq: X-Hasura-Teacher-Id
             - user_id:
                 _eq: X-Hasura-User-Id
         allow_aggregations: true
@@ -783,6 +904,23 @@
           - school_id
         filter: {}
         allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - email
+          - first_name
+          - last_name
+          - password_hash
+          - phone
+          - status
+          - created_at
+          - updated_at
+          - id
+          - school_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+        allow_aggregations: true
 - table:
     name: auditlogs
     schema: infrastructure
@@ -979,6 +1117,26 @@
           - section_id
           - student_id
         filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - status
+          - enrolled_at
+          - academic_year_id
+          - id
+          - school_id
+          - section_id
+          - student_id
+        filter:
+          _and:
+            - school_id:
+                _eq: X-Hasura-School-Id
+            - section:
+                teacherassignments:
+                  user:
+                    id:
+                      _eq: X-Hasura-User-Id
         allow_aggregations: true
 - table:
     name: students

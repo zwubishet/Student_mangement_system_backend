@@ -64,6 +64,14 @@ export const loginUser = async (email, password) => {
   const userRes = await query(userQuery, [email]);
   const user = userRes.rows[0];
 
+  const teacherQuery = `
+    SELECT t.id as teacher_id
+    FROM academic.teachers t
+    WHERE t.user_id = $1
+  `;
+  const teacherRes = await query(teacherQuery, [user.id]);
+  const teacherInfo = teacherRes.rows[0]; // Will be undefined if not a teacher
+
   // 2. Check if user exists and password is correct
   if (!user || !(await comparePasswords(password, user.password_hash))) {
     throw new AppError('Incorrect email or password', 401);
@@ -95,7 +103,8 @@ export const loginUser = async (email, password) => {
     schoolId: user.school_id, // Ensure you use snake_case from DB
     roles: roles,             // Put roles inside the object
     firstName: user.first_name, 
-    lastName: user.last_name 
+    lastName: user.last_name, 
+    teacherId: teacherInfo ? teacherInfo.teacher_id : null // Include teacher ID if exists
   });
 
   return {

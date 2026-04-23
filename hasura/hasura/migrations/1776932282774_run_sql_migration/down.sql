@@ -1,0 +1,5 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE academic.attendance
+-- ADD CONSTRAINT attendance_student_section_date_key
+-- UNIQUE (student_id, section_id, date);

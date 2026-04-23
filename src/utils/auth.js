@@ -15,7 +15,10 @@ export const generateHasuraToken = (user) => {
       "x-hasura-allowed-roles": user.roles,
       "x-hasura-default-role": user.roles[0],
       "x-hasura-user-id": user.id.toString(),
-      "x-hasura-school-id": user.schoolId.toString()
+      "x-hasura-school-id": user.schoolId.toString(),
+      "x-hasura-first-name": user.firstName || '',
+      "x-hasura-last-name": user.lastName || '',
+      "x-hasura-teacher-id": user.teacherId ? user.teacherId.toString() : ""
     }
   };
 
