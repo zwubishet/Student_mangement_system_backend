@@ -7,13 +7,13 @@ export const createTeacher = catchAsync(async (req, res, next) => {
   const { input, session_variables } = req.body;
   const { first_name, last_name, email, phone, hire_date } = input.object;
   const school_id = session_variables['x-hasura-school-id'];
+  if (!school_id) return next(new AppError('Unauthorized', 401));
 
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    // 1. Create User in identity schema (Default password could be phone or a random string)
-     const hashedPw = await bcrypt.hash('Teacher123!', 12);
+    const hashedPw = await bcrypt.hash('Teacher123!', 12);
     const userRes = await client.query(
       `INSERT INTO identity.users (email, first_name, last_name, school_id, status, password_hash) 
        VALUES ($1, $2, $3, $4, 'active', $5) RETURNING id`,
@@ -21,27 +21,13 @@ export const createTeacher = catchAsync(async (req, res, next) => {
     );
     const userId = userRes.rows[0].id;
 
-    const roleRes = await client.query(
-       `SELECT id FROM identity.roles WHERE name = 'TEACHER' AND school_id = $1`,
-       [school_id]
-    );
-
-    // If "TEACHER" role doesn't exist, create it
-    if (roleRes.rows.length === 0) {
-      await client.query(
-        `INSERT INTO identity.roles (name, school_id) VALUES ($1, $2)`,
-        ['TEACHER', school_id]
-      );
-    }
-
-    // 2. Assign TEACHER Role
+    // TEACHER role is global (no school_id) — fix the original bug
     await client.query(
       `INSERT INTO identity.userroles (user_id, role_id) 
-       SELECT $1, id FROM identity.roles WHERE name = 'TEACHER' AND school_id = $2`,
-      [userId, school_id]
+       SELECT $1, id FROM identity.roles WHERE name = 'TEACHER' LIMIT 1`,
+      [userId]
     );
 
-    // 3. Create Teacher profile in academic schema
     const teacherRes = await client.query(
       `INSERT INTO academic.teachers (school_id, user_id, first_name, last_name, email, phone, hire_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -49,13 +35,10 @@ export const createTeacher = catchAsync(async (req, res, next) => {
     );
 
     await client.query('COMMIT');
-    res.json({ 
-      teacher_id: teacherRes.rows[0].id, 
-      user_id: userId, 
-      email 
-    });
+    res.json({ teacher_id: teacherRes.rows[0].id, user_id: userId, email });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (err.code === '23505') return next(new AppError('Email already exists.', 400));
     return next(new AppError(err.message, 500));
   } finally {
     client.release();

@@ -707,6 +707,19 @@
           - id
         filter: {}
         allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - end_date
+          - start_date
+          - name
+          - academic_year_id
+          - id
+        filter:
+          academicyear:
+            school_id:
+              _eq: X-Hasura-School-Id
+        allow_aggregations: true
 - table:
     name: feestructureitems
     schema: finance
@@ -977,6 +990,49 @@
     - name: student
       using:
         foreign_key_constraint_on: student_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - score
+          - grade
+          - remarks
+          - exam_subject_id
+          - id
+          - student_id
+        filter:
+          examsubject:
+            exam:
+              school_id:
+                _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - score
+          - grade
+          - remarks
+          - exam_subject_id
+          - id
+          - student_id
+        filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - score
+          - grade
+          - remarks
+          - exam_subject_id
+          - id
+          - student_id
+        filter:
+          examsubject:
+            subject:
+              teacherassignments:
+                teacher_id:
+                  _eq: X-Hasura-User-Id
+        allow_aggregations: true
 - table:
     name: exams
     schema: operations
@@ -995,6 +1051,50 @@
           table:
             name: examsubjects
             schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - id
+          - school_id
+          - name
+          - term_id
+          - weightage
+          - created_at
+        filter:
+          _and:
+            - examsubjects:
+                exam:
+                  school_id:
+                    _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - weightage
+          - name
+          - created_at
+          - id
+          - school_id
+          - term_id
+        filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - weightage
+          - name
+          - created_at
+          - id
+          - school_id
+          - term_id
+        filter:
+          examsubjects:
+            subject:
+              teacherassignments:
+                teacher_id:
+                  _eq: X-Hasura-User-Id
+        allow_aggregations: true
 - table:
     name: examsubjects
     schema: operations
@@ -1013,6 +1113,58 @@
           table:
             name: examresults
             schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns:
+          - max_score
+          - passing_score
+          - exam_id
+          - id
+          - section_id
+          - subject_id
+        filter:
+          _and:
+            - exam:
+                school_id:
+                  _eq: X-Hasura-School-Id
+            - subject:
+                school_id:
+                  _eq: X-Hasura-School-Id
+        allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - max_score
+          - passing_score
+          - exam_id
+          - id
+          - section_id
+          - subject_id
+        filter: {}
+        allow_aggregations: true
+    - role: TEACHER
+      permission:
+        columns:
+          - max_score
+          - passing_score
+          - exam_id
+          - id
+          - section_id
+          - subject_id
+        filter:
+          _and:
+            - exam:
+                school_id:
+                  _eq: X-Hasura-School-Id
+            - subject:
+                school_id:
+                  _eq: X-Hasura-School-Id
+            - subject:
+                teacherassignments:
+                  teacher_id:
+                    _eq: X-Hasura-User-Id
+        allow_aggregations: true
 - table:
     name: homeworks
     schema: operations
