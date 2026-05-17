@@ -1,1 +1,1 @@
-DROP table "public"."CommunityPost";
+DROP TABLE IF EXISTS "public"."CommunityPost";

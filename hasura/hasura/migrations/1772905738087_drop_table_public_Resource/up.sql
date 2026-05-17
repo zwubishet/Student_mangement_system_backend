@@ -1,1 +1,1 @@
-DROP table "public"."Resource";
+DROP TABLE IF EXISTS "public"."Resource";

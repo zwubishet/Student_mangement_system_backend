@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { AppError, ERROR_CODES } from '../utils/errors.js';
 
 export const listAcademicYears = async (schoolId) => {
   const result = await query(
@@ -9,6 +10,76 @@ export const listAcademicYears = async (schoolId) => {
     [schoolId]
   );
   return result.rows;
+};
+
+/** Years with nested terms and enrollment counts (REST replacement for Hasura GraphQL). */
+export const listAcademicYearsDetailed = async (schoolId) => {
+  const result = await query(
+    `SELECT ay.id, ay.name, ay.start_date, ay.end_date, ay.status,
+            COALESCE(
+              (
+                SELECT json_agg(
+                  json_build_object(
+                    'id', t.id,
+                    'name', t.name,
+                    'start_date', t.start_date,
+                    'end_date', t.end_date
+                  ) ORDER BY t.start_date
+                )
+                FROM academic.terms t
+                WHERE t.academic_year_id = ay.id
+              ),
+              '[]'::json
+            ) AS terms,
+            (
+              SELECT COUNT(*)::int
+              FROM student.studentenrollments se
+              WHERE se.academic_year_id = ay.id
+            ) AS enrollment_count
+     FROM academic.academicyears ay
+     WHERE ay.school_id = $1
+     ORDER BY ay.start_date DESC`,
+    [schoolId]
+  );
+  return result.rows.map((row) => ({
+    ...row,
+    terms: typeof row.terms === 'string' ? JSON.parse(row.terms) : row.terms || [],
+  }));
+};
+
+export const createAcademicYear = async (schoolId, { name, start_date, end_date }) => {
+  const result = await query(
+    `INSERT INTO academic.academicyears (school_id, name, start_date, end_date, status)
+     VALUES ($1, $2, $3, $4, 'active')
+     RETURNING id, name, start_date, end_date, status`,
+    [schoolId, name, start_date, end_date]
+  );
+  return result.rows[0];
+};
+
+export const createTerm = async (schoolId, { academic_year_id, name, start_date, end_date }) => {
+  const yearRes = await query(
+    `SELECT start_date, end_date FROM academic.academicyears WHERE id = $1 AND school_id = $2`,
+    [academic_year_id, schoolId]
+  );
+  if (!yearRes.rows[0]) {
+    throw new AppError('Academic year not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+  const year = yearRes.rows[0];
+  if (new Date(start_date) < new Date(year.start_date) || new Date(end_date) > new Date(year.end_date)) {
+    throw new AppError(
+      `Term dates must be within ${year.start_date} and ${year.end_date}`,
+      400,
+      ERROR_CODES.VALIDATION_ERROR
+    );
+  }
+  const result = await query(
+    `INSERT INTO academic.terms (academic_year_id, name, start_date, end_date)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, name, start_date, end_date, academic_year_id`,
+    [academic_year_id, name, start_date, end_date]
+  );
+  return result.rows[0];
 };
 
 export const listTerms = async (schoolId, academicYearId) => {

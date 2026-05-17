@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(requireTenant, requireRole('SCHOOL_ADMIN'));
 
 router.get('/stats', ctrl.stats);
+router.get('/departments', ctrl.departments);
 router.get('/export', validateQuery(paginationSchema), ctrl.exportCsv);
 router.post('/bulk', ctrl.bulk);
 router.post('/import', ctrl.importRows);
@@ -23,5 +24,7 @@ router.post('/:id/restore', ctrl.restore);
 router.delete('/:id', ctrl.remove);
 router.post('/:id/notes', ctrl.addNote);
 router.post('/:id/qualifications', ctrl.addQualification);
+router.post('/:id/documents', ctrl.addDocument);
+router.put('/:id/availability', ctrl.setAvailability);
 
 export default router;

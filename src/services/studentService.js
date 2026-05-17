@@ -56,6 +56,14 @@ const buildListFilters = (schoolId, q) => {
     conditions.push(`se.enrolled_at <= $${idx++}`);
     params.push(q.enrolled_to);
   }
+  if (q.tag_id) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM student.student_tag_map stm
+      WHERE stm.student_id = s.id AND stm.tag_id = $${idx}
+    )`);
+    params.push(q.tag_id);
+    idx++;
+  }
 
   return { conditions, params, idx };
 };
@@ -128,7 +136,7 @@ export const getStudentProfile = async (schoolId, studentId) => {
   );
   if (!base.rows[0]) throw new AppError('Student not found', 404, ERROR_CODES.NOT_FOUND);
 
-  const [enrollments, guardians, notes, documents, tags, activity, attendance, exams] = await Promise.all([
+  const [enrollments, guardians, notes, documents, tags, activity, attendance, medical, exams] = await Promise.all([
     query(
       `SELECT se.*, sec.name AS section_name, ay.name AS academic_year, g.name AS grade_name
        FROM student.studentenrollments se
@@ -165,6 +173,10 @@ export const getStudentProfile = async (schoolId, studentId) => {
       [studentId]
     ).catch(() => ({ rows: [] })),
     query(
+      `SELECT * FROM student.student_medical_records WHERE student_id = $1 AND school_id = $2`,
+      [studentId, schoolId]
+    ).catch(() => ({ rows: [] })),
+    query(
       `SELECT AVG(er.score)::numeric(5,2) AS avg_score, COUNT(*)::int AS exam_count
        FROM operations.examresults er WHERE er.student_id = $1`,
       [studentId]
@@ -184,6 +196,7 @@ export const getStudentProfile = async (schoolId, studentId) => {
     activity: activity.rows,
     attendance_summary: attendance.rows,
     exam_summary: exams.rows[0],
+    medical: medical.rows[0] || null,
   };
 };
 
@@ -310,6 +323,7 @@ export const archiveStudent = async (schoolId, studentId, actorId) => {
     [schoolId, studentId]
   );
   if (!result.rows[0]) throw new AppError('Student not found.', 404, ERROR_CODES.NOT_FOUND);
+  audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.UPDATE, entity: 'student', entityId: studentId, meta: { lifecycle: 'archived' } });
   logStudentActivity({ schoolId, studentId, actorId, action: 'ARCHIVED' });
   return result.rows[0];
 };
@@ -321,6 +335,7 @@ export const restoreStudent = async (schoolId, studentId, actorId) => {
     [schoolId, studentId]
   );
   if (!result.rows[0]) throw new AppError('Student not found.', 404, ERROR_CODES.NOT_FOUND);
+  audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.UPDATE, entity: 'student', entityId: studentId, meta: { lifecycle: 'active' } });
   logStudentActivity({ schoolId, studentId, actorId, action: 'RESTORED' });
   return result.rows[0];
 };
@@ -354,6 +369,7 @@ export const bulkStudentAction = async (schoolId, { ids, action }, actorId) => {
     [schoolId, ids]
   );
   for (const id of ids) {
+    audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.UPDATE, entity: 'student', entityId: id, meta: { bulk: action } });
     logStudentActivity({ schoolId, studentId: id, actorId, action: `BULK_${action.toUpperCase()}` });
   }
   return { updated: ids.length };
@@ -375,8 +391,34 @@ export const addStudentGuardian = async (schoolId, studentId, data, actorId) => 
      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
     [schoolId, studentId, data.full_name, data.relationship, data.email, data.phone, data.is_primary || false]
   );
+  audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.CREATE, entity: 'student_guardian', entityId: result.rows[0].id });
   logStudentActivity({ schoolId, studentId, actorId, action: 'GUARDIAN_ADDED' });
   return result.rows[0];
+};
+
+export const updateStudentGuardian = async (schoolId, studentId, guardianId, data, actorId) => {
+  const result = await query(
+    `UPDATE student.student_guardians
+     SET full_name = COALESCE($4, full_name), relationship = COALESCE($5, relationship),
+         email = COALESCE($6, email), phone = COALESCE($7, phone), is_primary = COALESCE($8, is_primary)
+     WHERE id = $1 AND student_id = $2 AND school_id = $3 RETURNING *`,
+    [guardianId, studentId, schoolId, data.full_name, data.relationship, data.email, data.phone, data.is_primary]
+  );
+  if (!result.rows[0]) throw new AppError('Guardian not found.', 404, ERROR_CODES.NOT_FOUND);
+  audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.UPDATE, entity: 'student_guardian', entityId: guardianId });
+  logStudentActivity({ schoolId, studentId, actorId, action: 'GUARDIAN_UPDATED', meta: { guardianId } });
+  return result.rows[0];
+};
+
+export const deleteStudentGuardian = async (schoolId, studentId, guardianId, actorId) => {
+  const result = await query(
+    `DELETE FROM student.student_guardians WHERE id = $1 AND student_id = $2 AND school_id = $3 RETURNING id`,
+    [guardianId, studentId, schoolId]
+  );
+  if (!result.rows[0]) throw new AppError('Guardian not found.', 404, ERROR_CODES.NOT_FOUND);
+  audit({ userId: actorId, schoolId, action: AUDIT_ACTIONS.DELETE, entity: 'student_guardian', entityId: guardianId });
+  logStudentActivity({ schoolId, studentId, actorId, action: 'GUARDIAN_REMOVED', meta: { guardianId } });
+  return { deleted: true };
 };
 
 export const importStudents = async (schoolId, rows, actorId) => {
@@ -454,14 +496,23 @@ export const removeStudentTag = async (schoolId, studentId, tagId, actorId) => {
 };
 
 export const addStudentDocument = async (schoolId, studentId, data, actorId) => {
-  const { title, file_url, doc_type, mime_type } = data;
-  if (!title?.trim() || !file_url?.trim()) {
+  const { title, file_url, file_id, doc_type } = data;
+  let url = file_url?.trim();
+  if (file_id) {
+    const f = await query(
+      `SELECT file_url FROM infrastructure.files WHERE id = $1 AND school_id = $2 AND status = 'ready'`,
+      [file_id, schoolId]
+    );
+    if (!f.rows[0]) throw new AppError('Uploaded file not found or not ready.', 400, ERROR_CODES.NOT_FOUND);
+    url = f.rows[0].file_url;
+  }
+  if (!title?.trim() || !url) {
     throw new AppError('Title and file are required.', 400, ERROR_CODES.VALIDATION_ERROR);
   }
   const result = await query(
     `INSERT INTO student.student_documents (school_id, student_id, title, file_url, doc_type, uploaded_by)
      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [schoolId, studentId, title.trim(), file_url.trim(), doc_type || 'general', actorId]
+    [schoolId, studentId, title.trim(), url, doc_type || 'general', actorId]
   ).catch((err) => {
     if (err.code === '42P01') throw new AppError('Documents table not migrated. Run latest DB migration.', 500);
     throw err;

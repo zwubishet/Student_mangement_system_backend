@@ -11,7 +11,7 @@ export const signupSchema = Joi.object({
 
 // Add this to your existing authValidation.js
 export const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
+  email: Joi.string().email().required().lowercase().trim().messages({
     'string.email': 'Please provide a valid email address',
     'any.required': 'Email is required'
   }),

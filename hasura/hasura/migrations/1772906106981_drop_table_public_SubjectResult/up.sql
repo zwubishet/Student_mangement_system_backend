@@ -1,1 +1,1 @@
-DROP table "public"."SubjectResult";
+DROP TABLE IF EXISTS "public"."SubjectResult";

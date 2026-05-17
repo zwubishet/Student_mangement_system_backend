@@ -6,6 +6,10 @@ export const stats = catchAsync(async (req, res) => {
   sendSuccess(res, await teacherService.getTeacherStats(req.tenant.schoolId));
 });
 
+export const departments = catchAsync(async (req, res) => {
+  sendSuccess(res, await teacherService.listTeacherDepartments(req.tenant.schoolId));
+});
+
 export const list = catchAsync(async (req, res) => {
   const { rows, total, page, limit } = await teacherService.listTeachers(req.tenant.schoolId, req.query);
   sendPaginated(res, rows, total, page, limit);
@@ -57,4 +61,12 @@ export const addNote = catchAsync(async (req, res) => {
 
 export const addQualification = catchAsync(async (req, res) => {
   sendSuccess(res, await teacherService.addTeacherQualification(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
+
+export const addDocument = catchAsync(async (req, res) => {
+  sendSuccess(res, await teacherService.addTeacherDocument(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
+
+export const setAvailability = catchAsync(async (req, res) => {
+  sendSuccess(res, await teacherService.setTeacherAvailability(req.tenant.schoolId, req.params.id, req.body.slots, req.tenant.userId));
 });

@@ -2,6 +2,9 @@ import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 import { sendSuccess, sendPaginated } from '../../utils/errors.js';
 import * as studentService from '../../services/studentService.js';
+import * as enrollmentService from '../../services/enrollmentService.js';
+import * as studentAnalyticsService from '../../services/studentAnalyticsService.js';
+import * as studentPdfService from '../../services/studentPdfService.js';
 
 export const stats = catchAsync(async (req, res) => {
   sendSuccess(res, await studentService.getStudentStats(req.tenant.schoolId));
@@ -62,6 +65,54 @@ export const addNote = catchAsync(async (req, res) => {
 
 export const addGuardian = catchAsync(async (req, res) => {
   sendSuccess(res, await studentService.addStudentGuardian(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
+
+export const updateGuardian = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.updateStudentGuardian(
+    req.tenant.schoolId, req.params.id, req.params.guardianId, req.body, req.tenant.userId
+  ));
+});
+
+export const deleteGuardian = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.deleteStudentGuardian(
+    req.tenant.schoolId, req.params.id, req.params.guardianId, req.tenant.userId
+  ));
+});
+
+export const transferEnrollment = catchAsync(async (req, res) => {
+  sendSuccess(res, await enrollmentService.transferStudentEnrollment(
+    req.tenant.schoolId, req.params.id, { ...req.body, reason: 'transfer' }, req.tenant.userId
+  ));
+});
+
+export const promoteEnrollment = catchAsync(async (req, res) => {
+  sendSuccess(res, await enrollmentService.transferStudentEnrollment(
+    req.tenant.schoolId, req.params.id, { ...req.body, reason: 'promote' }, req.tenant.userId
+  ));
+});
+
+export const withdrawEnrollment = catchAsync(async (req, res) => {
+  sendSuccess(res, await enrollmentService.withdrawStudentEnrollment(
+    req.tenant.schoolId, req.params.id, req.body, req.tenant.userId
+  ));
+});
+
+export const analytics = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentAnalyticsService.getStudentAnalytics(req.tenant.schoolId, req.params.id));
+});
+
+export const idCardPdf = catchAsync(async (req, res) => {
+  const buf = await studentPdfService.buildStudentIdCardPdf(req.tenant.schoolId, req.params.id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=student-${req.params.id}-id.pdf`);
+  res.send(buf);
+});
+
+export const profilePdf = catchAsync(async (req, res) => {
+  const buf = await studentPdfService.buildStudentProfilePdf(req.tenant.schoolId, req.params.id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=student-${req.params.id}-profile.pdf`);
+  res.send(buf);
 });
 
 export const listTags = catchAsync(async (req, res) => {

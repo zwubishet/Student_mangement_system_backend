@@ -1,0 +1,25 @@
+# Render Blueprint — Express API (Neon + Vercel). Hasura optional.
+
+services:
+  - type: web
+    name: sms-api
+    runtime: node
+    rootDir: Student_mangement_system_backend
+    buildCommand: npm install
+    startCommand: npm start
+    # Or in dashboard: Start Command = npm start  (not node server.js alone)
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true
+      - key: ACTION_SECRET
+        generateValue: true
+      # Must match ACCESS_TOKEN_SECRET: {"type":"HS256","key":"<ACCESS_TOKEN_SECRET>"}
+      - key: CORS_ORIGIN
+        sync: false

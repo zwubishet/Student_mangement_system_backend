@@ -4,6 +4,7 @@ import { validate, validateQuery } from '../middlewares/validate.js';
 import { paginationSchema } from '../utils/pagination.js';
 import { enrollStudentBodySchema } from '../utils/schemas.js';
 import * as ctrl from '../controllers/academic/studentController.js';
+import * as medicalCtrl from '../controllers/academic/studentMedicalController.js';
 
 const router = express.Router();
 router.use(requireTenant, requireRole('SCHOOL_ADMIN'));
@@ -18,7 +19,15 @@ router.post('/tags', ctrl.createTag);
 router.get('/', validateQuery(paginationSchema), ctrl.list);
 router.post('/', validate(enrollStudentBodySchema), ctrl.create);
 
+router.get('/:id/medical', medicalCtrl.get);
+router.put('/:id/medical', medicalCtrl.upsert);
+router.get('/:id/analytics', ctrl.analytics);
+router.get('/:id/export/id-card', ctrl.idCardPdf);
+router.get('/:id/export/profile', ctrl.profilePdf);
 router.get('/:id', ctrl.getOne);
+router.post('/:id/enrollment/transfer', ctrl.transferEnrollment);
+router.post('/:id/enrollment/promote', ctrl.promoteEnrollment);
+router.post('/:id/enrollment/withdraw', ctrl.withdrawEnrollment);
 router.post('/:id/documents', ctrl.addDocument);
 router.post('/:id/tags/:tagId', ctrl.assignTag);
 router.delete('/:id/tags/:tagId', ctrl.removeTag);
@@ -28,5 +37,7 @@ router.post('/:id/restore', ctrl.restore);
 router.delete('/:id', ctrl.remove);
 router.post('/:id/notes', ctrl.addNote);
 router.post('/:id/guardians', ctrl.addGuardian);
+router.patch('/:id/guardians/:guardianId', ctrl.updateGuardian);
+router.delete('/:id/guardians/:guardianId', ctrl.deleteGuardian);
 
 export default router;

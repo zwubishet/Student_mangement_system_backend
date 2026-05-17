@@ -4,12 +4,16 @@ import { validate, validateQuery } from '../middlewares/validate.js';
 import { updateSchoolSettingsSchema, createGradeScaleSchema } from '../utils/schemas.js';
 import { paginationSchema } from '../utils/pagination.js';
 import * as ctrl from '../controllers/settings/settingsController.js';
+import * as pdfCtrl from '../controllers/settings/pdfTemplateController.js';
 
 const router = express.Router();
 router.use(requireTenant, requireRole('SCHOOL_ADMIN'));
 
 router.get('/', ctrl.getSettings);
 router.patch('/', validate(updateSchoolSettingsSchema), ctrl.updateSettings);
+
+router.get('/pdf-templates', pdfCtrl.list);
+router.put('/pdf-templates/:key', pdfCtrl.upsert);
 
 router.get('/grade-scales', ctrl.listGradeScales);
 router.post('/grade-scales', validate(createGradeScaleSchema), ctrl.createGradeScale);

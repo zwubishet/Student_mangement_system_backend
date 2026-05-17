@@ -6,6 +6,7 @@ import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import { AppError } from './utils/errors.js';
 import mainRouter from './routes/index.js';
 import { restrictBlacklisted } from './middlewares/authMiddleware.js';
+import { resolveCorsOptions } from './utils/corsOrigins.js';
 
 const required = ['DATABASE_URL', 'ACCESS_TOKEN_SECRET', 'ACTION_SECRET'];
 required.forEach((key) => {
@@ -15,7 +16,7 @@ required.forEach((key) => {
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(cors(resolveCorsOptions()));
 app.use(express.json({ limit: '8mb' }));
 
 const apiRateMax = process.env.NODE_ENV === 'development' ? 5000 : 500;

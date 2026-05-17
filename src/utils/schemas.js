@@ -162,7 +162,8 @@ export const createGradeScaleSchema = Joi.object({
 });
 
 // ─── Academic Year / Term ─────────────────────────────────────────────────────
-export const createAcademicYearSchema = Joi.object({
+/** Hasura action payload */
+export const createAcademicYearActionSchema = Joi.object({
   input: Joi.object({
     object: Joi.object({
       name: Joi.string().trim().min(1).max(50).required(),
@@ -171,4 +172,18 @@ export const createAcademicYearSchema = Joi.object({
     }).required(),
   }).required(),
   session_variables: Joi.object().unknown(true).required(),
+});
+
+/** REST catalog POST /catalog/years */
+export const createAcademicYearSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(50).required(),
+  start_date: Joi.date().iso().required(),
+  end_date: Joi.date().iso().greater(Joi.ref('start_date')).required(),
+});
+
+export const createTermSchema = Joi.object({
+  academic_year_id: Joi.string().uuid().required(),
+  name: Joi.string().trim().min(1).max(50).required(),
+  start_date: Joi.date().iso().required(),
+  end_date: Joi.date().iso().greater(Joi.ref('start_date')).required(),
 });

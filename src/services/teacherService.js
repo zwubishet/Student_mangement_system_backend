@@ -2,6 +2,9 @@ import { query, getClient } from '../config/db.js';
 import { AppError, ERROR_CODES } from '../utils/errors.js';
 import { hashPassword } from '../utils/auth.js';
 import { audit, AUDIT_ACTIONS } from '../utils/audit.js';
+
+const auditTeacher = (actorId, schoolId, action, teacherId, meta = {}) =>
+  audit({ userId: actorId, schoolId, action, entity: 'teacher', entityId: teacherId, meta });
 import { getPaginationParams } from '../utils/pagination.js';
 import { logTeacherActivity } from '../utils/entityActivity.js';
 
@@ -51,6 +54,12 @@ const buildTeacherFilters = (schoolId, q) => {
     )`);
     params.push(q.subject_id);
     idx++;
+  }
+  if (q.availability === 'true') {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM academic.teacher_availability av
+      WHERE av.teacher_id = t.id AND av.is_available = true
+    )`);
   }
 
   return { conditions, params, idx };
@@ -231,6 +240,7 @@ export const updateTeacher = async (schoolId, teacherId, data, actorId) => {
     params
   );
   if (!result.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
+  auditTeacher(actorId, schoolId, AUDIT_ACTIONS.UPDATE, teacherId, data);
   logTeacherActivity({ schoolId, teacherId, actorId, action: 'UPDATED', meta: data });
   return result.rows[0];
 };
@@ -242,6 +252,7 @@ export const archiveTeacher = async (schoolId, teacherId, actorId) => {
     [schoolId, teacherId]
   );
   if (!result.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
+  auditTeacher(actorId, schoolId, AUDIT_ACTIONS.UPDATE, teacherId, { status: 'archived' });
   logTeacherActivity({ schoolId, teacherId, actorId, action: 'ARCHIVED' });
   return result.rows[0];
 };
@@ -274,6 +285,7 @@ export const bulkTeacherAction = async (schoolId, { ids, action }, actorId) => {
     archive: `status = 'archived', archived_at = NOW()`,
     restore: `status = 'active', archived_at = NULL`,
     activate: `status = 'active'`,
+    suspend: `status = 'suspended'`,
   };
   const setClause = map[action];
   if (!setClause) throw new AppError('Invalid bulk action.', 400, ERROR_CODES.VALIDATION_ERROR);
@@ -283,7 +295,10 @@ export const bulkTeacherAction = async (schoolId, { ids, action }, actorId) => {
      WHERE school_id = $1 AND id = ANY($2::uuid[]) AND deleted_at IS NULL`,
     [schoolId, ids]
   );
-  for (const id of ids) logTeacherActivity({ schoolId, teacherId: id, actorId, action: `BULK_${action.toUpperCase()}` });
+  for (const id of ids) {
+    auditTeacher(actorId, schoolId, AUDIT_ACTIONS.UPDATE, id, { bulk: action });
+    logTeacherActivity({ schoolId, teacherId: id, actorId, action: `BULK_${action.toUpperCase()}` });
+  }
   return { updated: ids.length };
 };
 
@@ -343,4 +358,80 @@ export const exportTeachersCsv = async (schoolId, queryParams) => {
       .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
   );
   return header + lines.join('\n');
+};
+
+export const listTeacherDepartments = async (schoolId) => {
+  const result = await query(
+    `SELECT DISTINCT department FROM academic.teachers
+     WHERE school_id = $1 AND department IS NOT NULL AND department <> '' AND deleted_at IS NULL
+     ORDER BY department`,
+    [schoolId]
+  );
+  return result.rows.map((r) => r.department);
+};
+
+export const addTeacherDocument = async (schoolId, teacherId, data, actorId) => {
+  const { title, file_url, file_id, doc_type } = data;
+  let url = file_url?.trim();
+  if (file_id) {
+    const f = await query(
+      `SELECT file_url FROM infrastructure.files WHERE id = $1 AND school_id = $2 AND status = 'ready'`,
+      [file_id, schoolId]
+    );
+    if (!f.rows[0]) throw new AppError('Uploaded file not found or not ready.', 400, ERROR_CODES.NOT_FOUND);
+    url = f.rows[0].file_url;
+  }
+  if (!title?.trim() || !url) {
+    throw new AppError('Title and file are required.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const result = await query(
+    `INSERT INTO academic.teacher_documents (school_id, teacher_id, title, file_url, doc_type, uploaded_by)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [schoolId, teacherId, title.trim(), url, doc_type || 'general', actorId]
+  ).catch((err) => {
+    if (err.code === '42P01') throw new AppError('Documents table not migrated. Run latest DB migration.', 500);
+    throw err;
+  });
+  logTeacherActivity({ schoolId, teacherId, actorId, action: 'DOCUMENT_ADDED', meta: { title } });
+  return result.rows[0];
+};
+
+export const setTeacherAvailability = async (schoolId, teacherId, slots, actorId) => {
+  if (!Array.isArray(slots)) {
+    throw new AppError('Availability slots array required.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM academic.teacher_availability WHERE teacher_id = $1 AND school_id = $2', [
+      teacherId,
+      schoolId,
+    ]);
+    for (const slot of slots) {
+      await client.query(
+        `INSERT INTO academic.teacher_availability (school_id, teacher_id, day_of_week, start_time, end_time, is_available)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [
+          schoolId,
+          teacherId,
+          slot.day_of_week,
+          slot.start_time,
+          slot.end_time,
+          slot.is_available !== false,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+    logTeacherActivity({ schoolId, teacherId, actorId, action: 'AVAILABILITY_UPDATED' });
+    const rows = await query(
+      `SELECT * FROM academic.teacher_availability WHERE teacher_id = $1 ORDER BY day_of_week, start_time`,
+      [teacherId]
+    );
+    return rows.rows;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };

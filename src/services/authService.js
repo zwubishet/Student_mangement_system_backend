@@ -1,6 +1,6 @@
 import { getClient, query } from '../config/db.js';
 import { hashPassword, comparePasswords, generateHasuraToken } from '../utils/auth.js';
-import AppError from '../utils/appError.js';
+import { AppError, ERROR_CODES } from '../utils/errors.js';
 import bcrypt from 'bcryptjs';
 
 export const registerSchoolAndAdmin = async (data) => {
@@ -61,21 +61,20 @@ export const loginUser = async (email, password) => {
     JOIN tenancy.schools s ON u.school_id = s.id
     WHERE u.email = $1
   `;
-  const userRes = await query(userQuery, [email]);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const userRes = await query(userQuery, [normalizedEmail]);
   const user = userRes.rows[0];
-
-  const teacherQuery = `
-    SELECT t.id as teacher_id
-    FROM academic.teachers t
-    WHERE t.user_id = $1
-  `;
-  const teacherRes = await query(teacherQuery, [user.id]);
-  const teacherInfo = teacherRes.rows[0]; // Will be undefined if not a teacher
 
   // 2. Check if user exists and password is correct
   if (!user || !(await comparePasswords(password, user.password_hash))) {
-    throw new AppError('Incorrect email or password', 401);
+    throw new AppError('Incorrect email or password', 401, ERROR_CODES.INVALID_CREDENTIALS);
   }
+
+  const teacherRes = await query(
+    `SELECT t.id AS teacher_id FROM academic.teachers t WHERE t.user_id = $1`,
+    [user.id]
+  );
+  const teacherInfo = teacherRes.rows[0];
 
   // 3. Check if school/user is active (Scale Restriction)
   if (user.status !== 'active' || user.school_status !== 'active') {

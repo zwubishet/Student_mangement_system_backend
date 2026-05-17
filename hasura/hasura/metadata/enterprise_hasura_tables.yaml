@@ -1,0 +1,94 @@
+# Append these entries to metadata/tables.yaml (or merge via hasura metadata apply)
+# Enterprise + polish tables for GraphQL access
+
+- table:
+    name: student_medical_records
+    schema: student
+  object_relationships:
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: PARENT
+      permission:
+        columns:
+          - allergies
+          - medications
+          - emergency_notes
+          - blood_group
+          - student_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: student_guardians
+    schema: student
+  object_relationships:
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: school_pdf_templates
+    schema: tenancy
+  object_relationships:
+    - name: school
+      using:
+        foreign_key_constraint_on: school_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: notification_outbox
+    schema: tenancy
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: student_documents
+    schema: student
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: teacher_documents
+    schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id

@@ -7,7 +7,8 @@ export const getSchoolSettings = async (schoolId) => {
     `SELECT 
        s.id, s.name, s.school_address, s.status,
        ss.phone, ss.email, ss.logo_url, ss.timezone, ss.academic_year_format,
-       ss.allow_student_self_register, ss.max_students_per_class
+       ss.allow_student_self_register, ss.max_students_per_class,
+       ss.sms_enabled, ss.sms_sender_id, ss.sms_provider, ss.default_locale
      FROM tenancy.schools s
      LEFT JOIN tenancy.school_settings ss ON ss.school_id = s.id
      WHERE s.id = $1`,
@@ -41,7 +42,11 @@ export const updateSchoolSettings = async (schoolId, data, actorId) => {
     }
 
     // Upsert school_settings
-    const settingsFields = ['phone', 'email', 'logo_url', 'timezone', 'academic_year_format', 'allow_student_self_register', 'max_students_per_class'];
+    const settingsFields = [
+      'phone', 'email', 'logo_url', 'timezone', 'academic_year_format',
+      'allow_student_self_register', 'max_students_per_class',
+      'sms_enabled', 'sms_sender_id', 'sms_provider', 'default_locale',
+    ];
     const settingsData = {};
     for (const f of settingsFields) {
       if (data[f] !== undefined) settingsData[f] = data[f];

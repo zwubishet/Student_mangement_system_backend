@@ -15,6 +15,9 @@ import financeRouter from './financeRoutes.js';
 import fileRouter from './fileRoutes.js';
 import catalogRouter from './catalogRoutes.js';
 import teacherPortalRouter from './teacherPortalRoutes.js';
+import parentRouter from './parentRoutes.js';
+import parentPortalRouter from './parentPortalRoutes.js';
+import notificationRouter from './notificationRoutes.js';
 
 const mainRouter = express.Router();
 
@@ -34,5 +37,8 @@ mainRouter.use('/attendance', attendanceRouter);
 mainRouter.use('/super-admin', superAdminRouter);
 mainRouter.use('/finance', financeRouter);
 mainRouter.use('/files', fileRouter);
+mainRouter.use('/parents', parentRouter);
+mainRouter.use('/parent-portal', parentPortalRouter);
+mainRouter.use('/notifications', notificationRouter);
 
 export default mainRouter;
