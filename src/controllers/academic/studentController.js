@@ -1,93 +1,94 @@
-import { getClient } from '../../config/db.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
-import bcrypt from 'bcryptjs';
+import { sendSuccess, sendPaginated } from '../../utils/errors.js';
+import * as studentService from '../../services/studentService.js';
+
+export const stats = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.getStudentStats(req.tenant.schoolId));
+});
+
+export const list = catchAsync(async (req, res) => {
+  const { rows, total, page, limit } = await studentService.listStudents(req.tenant.schoolId, req.query);
+  sendPaginated(res, rows, total, page, limit);
+});
+
+export const exportCsv = catchAsync(async (req, res) => {
+  const csv = await studentService.exportStudentsCsv(req.tenant.schoolId, req.query);
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=students.csv');
+  res.send(csv);
+});
+
+export const bulk = catchAsync(async (req, res) => {
+  const result = await studentService.bulkStudentAction(req.tenant.schoolId, req.body, req.tenant.userId);
+  sendSuccess(res, result);
+});
+
+export const importRows = catchAsync(async (req, res) => {
+  const result = await studentService.importStudents(req.tenant.schoolId, req.body.rows, req.tenant.userId);
+  sendSuccess(res, result);
+});
+
+export const getOne = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.getStudentProfile(req.tenant.schoolId, req.params.id));
+});
+
+export const create = catchAsync(async (req, res) => {
+  const data = req.body.input?.object || req.body;
+  const result = await studentService.registerAndEnrollStudent(data, req.tenant.schoolId, req.tenant.userId);
+  sendSuccess(res, result, 201);
+});
+
+export const update = catchAsync(async (req, res) => {
+  const result = await studentService.updateStudent(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId);
+  sendSuccess(res, result);
+});
+
+export const archive = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.archiveStudent(req.tenant.schoolId, req.params.id, req.tenant.userId));
+});
+
+export const restore = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.restoreStudent(req.tenant.schoolId, req.params.id, req.tenant.userId));
+});
+
+export const remove = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.softDeleteStudent(req.tenant.schoolId, req.params.id, req.tenant.userId));
+});
+
+export const addNote = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.addStudentNote(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
+
+export const addGuardian = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.addStudentGuardian(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
+
+export const listTags = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.listSchoolTags(req.tenant.schoolId));
+});
+
+export const createTag = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.createSchoolTag(req.tenant.schoolId, req.body, req.tenant.userId), 201);
+});
+
+export const assignTag = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.assignStudentTag(req.tenant.schoolId, req.params.id, req.params.tagId, req.tenant.userId));
+});
+
+export const removeTag = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.removeStudentTag(req.tenant.schoolId, req.params.id, req.params.tagId, req.tenant.userId));
+});
+
+export const addDocument = catchAsync(async (req, res) => {
+  sendSuccess(res, await studentService.addStudentDocument(req.tenant.schoolId, req.params.id, req.body, req.tenant.userId), 201);
+});
 
 export const registerAndEnrollStudent = catchAsync(async (req, res, next) => {
-  const { input, session_variables } = req.body;
-  const { 
-    email, password, first_name, last_name, gender, 
-    date_of_birth, admission_number, section_id, academic_year_id 
-  } = input.object;
-
-  const school_id = session_variables['x-hasura-school-id'];
-  if (!school_id) return next(new AppError('Unauthorized', 401));
-
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
-    console.log(`Attempting to enroll student in section ${section_id} for academic year ${academic_year_id} at school ${school_id}`);
-
-    // 1. HIGH-SCALE CAPACITY CHECK
-    // We join the 'classes' table (where capacity is stored) with 'studentenrollments'
-    const capacityCheck = await client.query(
-      `SELECT 
-          c.capacity, 
-          COUNT(e.id) as current_enrollment
-       FROM academic.classes c
-       LEFT JOIN student.studentenrollments e ON c.section_id = e.section_id AND c.academic_year_id = e.academic_year_id
-       WHERE c.section_id = $1 AND c.academic_year_id = $2 AND c.school_id = $3
-       GROUP BY c.capacity`,
-      [section_id, academic_year_id, school_id]
-    );
-    
-    if (capacityCheck.rows.length === 0) {
-      throw new Error('This class/section has not been activated for this academic year.');
-    }
-
-    const { capacity, current_enrollment } = capacityCheck.rows[0];
-
-    if (parseInt(current_enrollment) >= parseInt(capacity)) {
-      return next(new AppError(`Classroom Full: Maximum capacity of ${capacity} reached.`, 400));
-    }
-
-    // 2. IDENTITY: Create User
-    const hashedPw = await bcrypt.hash(password || 'Student123!', 12);
-    const userRes = await client.query(
-      `INSERT INTO identity.users (email, password_hash, school_id, first_name, last_name, status) 
-       VALUES ($1, $2, $3, $4, $5, 'active') RETURNING id`,
-      [email, hashedPw, school_id, first_name, last_name]
-    );
-    const userId = userRes.rows[0].id;
-
-    // 3. ROLE: Assign Student Role
-    await client.query(
-      `INSERT INTO identity.userroles (user_id, role_id) 
-       SELECT $1, id FROM identity.roles WHERE name = 'STUDENT' LIMIT 1`,
-      [userId]
-    );
-
-    // 4. PROFILE: Create Student record
-    const studentRes = await client.query(
-      `INSERT INTO student.students (school_id, user_id, admission_number, first_name, last_name, gender, date_of_birth)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [school_id, userId, admission_number, first_name, last_name, gender, date_of_birth]
-    );
-    const studentId = studentRes.rows[0].id;
-
-    // 5. ENROLLMENT: Finalize
-    const enrollmentRes = await client.query(
-      `INSERT INTO student.studentenrollments (school_id, student_id, section_id, academic_year_id, status)
-       VALUES ($1, $2, $3, $4, 'active') RETURNING id`,
-      [school_id, studentId, section_id, academic_year_id]
-    );
-
-    await client.query('COMMIT');
-
-    res.json({
-      student_id: studentId,
-      user_id: userId,
-      enrollment_id: enrollmentRes.rows[0].id,
-      message: `Enrolled successfully. ${parseInt(current_enrollment) + 1}/${capacity} seats taken.`
-    });
-
-  } catch (err) {
-    await client.query('ROLLBACK');
-    if (err.code === '23505') {
-      return next(new AppError('Email or Admission Number already exists.', 400));
-    }
-    return next(new AppError(err.message, 400));
-  } finally {
-    client.release();
-  }
+  const schoolId = req.body.session_variables?.['x-hasura-school-id'];
+  const actorId = req.body.session_variables?.['x-hasura-user-id'];
+  const data = req.body.input?.object;
+  if (!schoolId) return next(new AppError('Unauthorized: School context missing.', 401));
+  const result = await studentService.registerAndEnrollStudent(data, schoolId, actorId);
+  res.json(result);
 });

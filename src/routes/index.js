@@ -3,20 +3,36 @@ import authrouter from './authRoutes.js';
 import academicRouter from './academicRoutes.js';
 import studentRouter from './studentRoutes.js';
 import teacherRouter from './teacherRoutes.js';
+import classRouter from './classRoutes.js';
+import examRouter from './examRoutes.js';
+import dashboardRouter from './dashboardRoutes.js';
+import settingsRouter from './settingsRoutes.js';
 import subjectRouter from './subjectRoutes.js';
 import operationRouter from './operationRoutes.js';
 import attendanceRouter from './attendanceRoutes.js';
 import superAdminRouter from './superAdminRoutes.js';
+import financeRouter from './financeRoutes.js';
+import fileRouter from './fileRoutes.js';
+import catalogRouter from './catalogRoutes.js';
+import teacherPortalRouter from './teacherPortalRoutes.js';
 
 const mainRouter = express.Router();
 
 mainRouter.use('/auth', authrouter);
-mainRouter.use('/academic', academicRouter);
+mainRouter.use('/dashboard', dashboardRouter);
 mainRouter.use('/students', studentRouter);
 mainRouter.use('/teachers', teacherRouter);
+mainRouter.use('/classes', classRouter);
+mainRouter.use('/exams', examRouter);
+mainRouter.use('/settings', settingsRouter);
+mainRouter.use('/catalog', catalogRouter);
+mainRouter.use('/teacher-portal', teacherPortalRouter);
+mainRouter.use('/academic', academicRouter);
 mainRouter.use('/subjects', subjectRouter);
 mainRouter.use('/operations', operationRouter);
 mainRouter.use('/attendance', attendanceRouter);
 mainRouter.use('/super-admin', superAdminRouter);
+mainRouter.use('/finance', financeRouter);
+mainRouter.use('/files', fileRouter);
 
 export default mainRouter;

@@ -2,13 +2,16 @@ import redisClient from '../config/redis.js';
 import jwt from 'jsonwebtoken';
 import AppError from '../utils/appError.js';
 import catchAsync from '../utils/catchAsync.js';
+import { query } from '../config/db.js';
 
 export const restrictBlacklisted = catchAsync(async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer')) {
     const token = authHeader.split(' ')[1];
-    
-    const isBlacklisted = await redisClient.get(`blacklist:${token}`);
+
+    const isBlacklisted = redisClient.isOpen
+      ? await redisClient.get(`blacklist:${token}`)
+      : null;
     if (isBlacklisted) {
       return next(new AppError('Token is no longer valid. Please log in again.', 401));
     }
@@ -51,5 +54,76 @@ export const protect = catchAsync(async (req, res, next) => {
     schoolId: claims['x-hasura-school-id'],
     role: claims['x-hasura-default-role']
   };
+  next();
+});
+
+export const requireTenant = catchAsync(async (req, res, next) => {
+  let token;
+  if (req.headers.authorization?.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) return next(new AppError('Not logged in.', 401));
+
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  const claims = decoded['https://hasura.io/jwt/claims'] || {};
+  const userId = claims['x-hasura-user-id'];
+  const schoolId = claims['x-hasura-school-id'];
+  const defaultRole = claims['x-hasura-default-role'];
+  const allowedRoles = claims['x-hasura-allowed-roles'] || [];
+
+  if (!userId || !schoolId) {
+    return next(new AppError('Invalid session: missing tenant claims.', 401));
+  }
+
+  req.tenant = {
+    userId,
+    schoolId,
+    role: defaultRole,
+    roles: Array.isArray(allowedRoles) ? allowedRoles : [defaultRole].filter(Boolean),
+  };
+
+  req.user = {
+    id: userId,
+    schoolId,
+    role: defaultRole,
+  };
+
+  next();
+});
+
+export const requireRole = (...roles) => (req, res, next) => {
+  const userRoles = req.tenant?.roles || [];
+  if (!roles.some((role) => userRoles.includes(role))) {
+    return next(new AppError('You do not have access to this resource.', 403));
+  }
+  next();
+};
+
+export const requirePermission = (...permissions) => catchAsync(async (req, res, next) => {
+  const tenant = req.tenant;
+  if (!tenant?.userId || !tenant?.schoolId) {
+    return next(new AppError('Tenant context is required.', 401));
+  }
+
+  const result = await query(
+    `SELECT DISTINCT p.name
+     FROM identity.userroles ur
+     JOIN identity.roles r ON r.id = ur.role_id
+     JOIN identity.rolepermissions rp ON rp.role_id = r.id
+     JOIN identity.permissions p ON p.id = rp.permission_id
+     WHERE ur.user_id = $1
+       AND (r.school_id = $2 OR r.school_id IS NULL)
+       AND p.name = ANY($3::text[])`,
+    [tenant.userId, tenant.schoolId, permissions]
+  );
+
+  const granted = new Set(result.rows.map((row) => row.name));
+  const isAllowed = permissions.some((permission) => granted.has(permission));
+
+  if (!isAllowed) {
+    return next(new AppError('Missing required permission.', 403));
+  }
+
   next();
 });

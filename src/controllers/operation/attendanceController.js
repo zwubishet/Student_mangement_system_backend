@@ -1,6 +1,7 @@
 import { getClient, query } from '../../config/db.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
+import { ATTENDANCE_TABLE } from '../../utils/attendanceTable.js';
 
 // Mark attendance for a list of students in a section
 export const markAttendance = catchAsync(async (req, res, next) => {
@@ -18,9 +19,9 @@ export const markAttendance = catchAsync(async (req, res, next) => {
     const results = await Promise.all(
       records.map(({ student_id, status }) =>
         client.query(
-          `INSERT INTO student.attendance (school_id, section_id, student_id, date, status)
+          `INSERT INTO ${ATTENDANCE_TABLE} (school_id, section_id, student_id, date, status)
            VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (section_id, student_id, date)
+           ON CONFLICT (student_id, section_id, date)
            DO UPDATE SET status = EXCLUDED.status
            RETURNING id`,
           [school_id, section_id, student_id, date, status]
@@ -47,7 +48,7 @@ export const getAttendance = catchAsync(async (req, res, next) => {
 
   const result = await query(
     `SELECT a.student_id, a.status, s.first_name, s.last_name
-     FROM student.attendance a
+     FROM ${ATTENDANCE_TABLE} a
      JOIN student.students s ON s.id = a.student_id
      WHERE a.section_id = $1 AND a.date = $2 AND a.school_id = $3`,
     [section_id, date, school_id]

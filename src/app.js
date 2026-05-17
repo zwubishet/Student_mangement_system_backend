@@ -3,10 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
-import AppError from './utils/appError.js';
+import { AppError } from './utils/errors.js';
 import mainRouter from './routes/index.js';
+import { restrictBlacklisted } from './middlewares/authMiddleware.js';
 
-// Validate required env vars on startup
 const required = ['DATABASE_URL', 'ACCESS_TOKEN_SECRET', 'ACTION_SECRET'];
 required.forEach((key) => {
   if (!process.env[key]) throw new Error(`Missing required env var: ${key}`);
@@ -16,31 +16,24 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '8mb' }));
 
-// Rate limiting
+const apiRateMax = process.env.NODE_ENV === 'development' ? 5000 : 500;
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 200,
+  windowMs: 15 * 60 * 1000,
+  max: apiRateMax,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api/', limiter);
+app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
-// Stricter limit on auth endpoints
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
-app.use('/api/v1/auth', authLimiter);
+app.use('/api/v1', restrictBlacklisted, mainRouter);
 
-app.use('/api/v1', mainRouter);
+app.get('/health', (req, res) => res.status(200).json({ status: 'active', timestamp: new Date().toISOString() }));
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'active', timestamp: new Date().toISOString() });
-});
-
-app.all('*', (req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
-});
+app.all('*', (req, res, next) => next(new AppError(`Route ${req.originalUrl} not found`, 404)));
 
 app.use(globalErrorHandler);
 

@@ -1,0 +1,5 @@
+endpoint: http://localhost:8082
+admin_secret: supersecret
+version: 2
+metadata_directory: metadata
+migrations_directory: migrations
