@@ -4,16 +4,19 @@
   "description": "School management API with Hasura + Express",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "scripts": {
     "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
-    "start": "node server.js",
+    "start": "node src/server.js",
     "test": "jest",
     "up": "docker-compose up -d",
     "down": "docker-compose down",
     "app:log": "docker-compose logs -f app",
     "hasura:log": "docker-compose logs -f hasura",
-    "console": "hasura console --project hasura --admin-secret supersecret --endpoint http://localhost:8082"
-
+    "console": "hasura console --project hasura --admin-secret supersecret --endpoint http://localhost:8082",
+    "seed:neon": "node scripts/seed-neon.mjs"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
@@ -31,6 +34,7 @@
     "helmet": "^7.2.0",
     "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.3",
+    "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
     "redis": "^5.11.0",
     "uuid": "^10.0.0"
