@@ -93,6 +93,12 @@ type Mutation {
 }
 
 type Mutation {
+  UpdateSchoolStatusAction(
+    object: UpdateSchoolStatusInput!
+  ): UpdateSchoolStatusOutput
+}
+
+type Mutation {
   RegisterSchoolAction(
     object: RegisterSchoolInput!
   ): RegisterSchoolOutput
@@ -176,6 +182,17 @@ input RegisterStudentInput {
   section_id: uuid!
   academic_year_id: uuid!
   password: String
+}
+
+input UpdateSchoolStatusInput {
+  school_id: uuid!
+  status: String!
+}
+
+type UpdateSchoolStatusOutput {
+  id: uuid!
+  name: String!
+  status: String!
 }
 
 input RegisterSchoolInput {

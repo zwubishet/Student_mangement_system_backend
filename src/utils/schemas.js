@@ -187,3 +187,24 @@ export const createTermSchema = Joi.object({
   start_date: Joi.date().iso().required(),
   end_date: Joi.date().iso().greater(Joi.ref('start_date')).required(),
 });
+
+// ─── Platform control plane (SUPER_ADMIN) ────────────────────────────────────
+export const createSchoolSchema = registerSchoolSchema;
+
+export const updateSchoolSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(100),
+  school_address: Joi.string().trim().max(255).allow(''),
+  domain: Joi.string().max(255).allow('', null),
+  plan: Joi.string().trim().max(50),
+}).min(1);
+
+export const updateSchoolStatusSchema = Joi.object({
+  school_id: Joi.string().uuid().required(),
+  status: Joi.string().valid('active', 'inactive', 'suspended').required(),
+});
+
+export const patchPlatformSettingsSchema = Joi.object({
+  maintenance_mode: Joi.boolean(),
+  default_school_plan: Joi.string(),
+  max_schools: Joi.number().integer().min(1),
+}).min(1);

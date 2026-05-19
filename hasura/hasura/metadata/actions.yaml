@@ -165,6 +165,16 @@ actions:
     permissions:
       - role: SUPER_ADMIN
       - role: SCHOOL_ADMIN
+  - name: UpdateSchoolStatusAction
+    definition:
+      kind: synchronous
+      handler: http://app:3003/api/v1/platform/actions/school-status
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value: supersecret
+    permissions:
+      - role: SUPER_ADMIN
   - name: RegisterSchoolAction
     definition:
       kind: synchronous

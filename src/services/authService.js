@@ -29,7 +29,9 @@ export const registerSchoolAndAdmin = async (data) => {
     // 3. Assign SCHOOL_ADMIN Role
     await client.query(
       `INSERT INTO identity.userroles (user_id, role_id)
-       SELECT $1, id FROM identity.roles WHERE name = 'SCHOOL_ADMIN'`,
+       SELECT $1, id FROM identity.roles
+       WHERE name = 'SCHOOL_ADMIN' AND school_id IS NULL
+       LIMIT 1`,
       [userId]
     );
 
@@ -54,21 +56,39 @@ export const registerSchoolAndAdmin = async (data) => {
 };
 
 export const loginUser = async (email, password) => {
-  // 1. Fetch user and their school status
   const userQuery = `
-    SELECT u.*, s.status as school_status 
+    SELECT u.*, s.status AS school_status
     FROM identity.users u
-    JOIN tenancy.schools s ON u.school_id = s.id
-    WHERE u.email = $1
+    LEFT JOIN tenancy.schools s ON u.school_id = s.id
+    WHERE lower(u.email) = $1
   `;
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const userRes = await query(userQuery, [normalizedEmail]);
   const user = userRes.rows[0];
 
-  // 2. Check if user exists and password is correct
   if (!user || !(await comparePasswords(password, user.password_hash))) {
     throw new AppError('Incorrect email or password', 401, ERROR_CODES.INVALID_CREDENTIALS);
   }
+
+  const rolesQuery = `
+    SELECT r.name
+    FROM identity.roles r
+    JOIN identity.userroles ur ON r.id = ur.role_id
+    WHERE ur.user_id = $1
+    ORDER BY CASE r.name
+      WHEN 'SUPER_ADMIN' THEN 0
+      WHEN 'SCHOOL_ADMIN' THEN 1
+      ELSE 2
+    END, r.name
+  `;
+  const rolesRes = await query(rolesQuery, [user.id]);
+  const roles = rolesRes.rows.map((row) => row.name);
+
+  if (roles.length === 0) {
+    throw new AppError('User has no assigned roles. Access denied.', 403);
+  }
+
+  const isPlatformAdmin = roles.includes('SUPER_ADMIN');
 
   const teacherRes = await query(
     `SELECT t.id AS teacher_id FROM academic.teachers t WHERE t.user_id = $1`,
@@ -76,23 +96,22 @@ export const loginUser = async (email, password) => {
   );
   const teacherInfo = teacherRes.rows[0];
 
-  // 3. Check if school/user is active (Scale Restriction)
-  if (user.status !== 'active' || user.school_status !== 'active') {
+  if (user.status !== 'active') {
+    throw new AppError('This account has been deactivated. Please contact support.', 403);
+  }
+
+  if (!isPlatformAdmin && user.school_status !== 'active') {
     throw new AppError('This account or school has been deactivated. Please contact support.', 403);
   }
 
-  // 4. Fetch User Roles (Crucial for Hasura Permissions)
-  const rolesQuery = `
-    SELECT r.name 
-    FROM identity.roles r
-    JOIN identity.userroles ur ON r.id = ur.role_id
-    WHERE ur.user_id = $1
-  `;
-  const rolesRes = await query(rolesQuery, [user.id]);
-  const roles = rolesRes.rows.map(row => row.name);
-
-  if (roles.length === 0) {
-    throw new AppError('User has no assigned roles. Access denied.', 403);
+  if (!isPlatformAdmin) {
+    const maintRes = await query(
+      `SELECT value FROM tenancy.platform_settings WHERE key = 'maintenance_mode'`
+    );
+    const maint = maintRes.rows[0]?.value;
+    if (maint === true || maint === 'true') {
+      throw new AppError('The platform is under maintenance. Please try again later.', 503);
+    }
   }
 
   // 5. Generate Hasura Token with School ID and Roles

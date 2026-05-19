@@ -934,6 +934,18 @@
           school_id:
             _eq: X-Hasura-School-Id
         allow_aggregations: true
+    - role: SUPER_ADMIN
+      permission:
+        columns:
+          - email
+          - first_name
+          - last_name
+          - status
+          - created_at
+          - id
+          - school_id
+        filter: {}
+        allow_aggregations: true
 - table:
     name: auditlogs
     schema: infrastructure
@@ -1449,6 +1461,14 @@
 - table:
     name: schools
     schema: tenancy
+  array_relationships:
+    - name: users
+      using:
+        foreign_key_constraint_on:
+          column: school_id
+          table:
+            name: users
+            schema: identity
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:

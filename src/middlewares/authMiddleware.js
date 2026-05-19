@@ -49,10 +49,40 @@ export const protect = catchAsync(async (req, res, next) => {
   const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   const claims = decoded['https://hasura.io/jwt/claims'];
   
+  const allowedRoles = claims['x-hasura-allowed-roles'] || [];
   req.user = {
     id: claims['x-hasura-user-id'],
     schoolId: claims['x-hasura-school-id'],
-    role: claims['x-hasura-default-role']
+    role: claims['x-hasura-default-role'],
+    roles: Array.isArray(allowedRoles) ? allowedRoles : [claims['x-hasura-default-role']].filter(Boolean),
+  };
+  next();
+});
+
+/** Platform control plane — SUPER_ADMIN only; no tenant school required. */
+export const requirePlatformAdmin = catchAsync(async (req, res, next) => {
+  let token;
+  if (req.headers.authorization?.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  if (!token) return next(new AppError('Not logged in.', 401));
+
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  const claims = decoded['https://hasura.io/jwt/claims'] || {};
+  const userId = claims['x-hasura-user-id'];
+  const allowedRoles = claims['x-hasura-allowed-roles'] || [];
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [];
+
+  if (!userId || !roles.includes('SUPER_ADMIN')) {
+    return next(new AppError('Platform administrator access required.', 403));
+  }
+
+  req.platform = { userId, roles };
+  req.user = {
+    id: userId,
+    schoolId: claims['x-hasura-school-id'],
+    role: 'SUPER_ADMIN',
+    roles,
   };
   next();
 });

@@ -1,11 +1,15 @@
 import express from 'express';
-import { listSchools, toggleSchoolStatus } from '../controllers/admin/superAdminController.js';
-import { protect } from '../middlewares/authMiddleware.js';
+import { restrictBlacklisted, requirePlatformAdmin } from '../middlewares/authMiddleware.js';
+import { validate } from '../middlewares/validate.js';
+import { updateSchoolStatusSchema } from '../utils/schemas.js';
+import * as ctrl from '../controllers/admin/superAdminController.js';
 
 const router = express.Router();
 
-router.use(protect);
-router.get('/schools', listSchools);
-router.post('/schools/status', toggleSchoolStatus);
+router.use(restrictBlacklisted, requirePlatformAdmin);
+
+/** @deprecated Use /api/v1/platform/* */
+router.get('/schools', ctrl.listSchoolsLegacy);
+router.post('/schools/status', validate(updateSchoolStatusSchema), ctrl.updateSchoolStatus);
 
 export default router;
