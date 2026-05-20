@@ -55,11 +55,16 @@ export const transferStudentEnrollment = async (
     }
 
     await checkCapacity(client, schoolId, section_id, academic_year_id);
+    const resolvedClassId = await client.query(
+      `SELECT id FROM academic.classes WHERE section_id = $1 AND academic_year_id = $2 AND school_id = $3 LIMIT 1`,
+      [section_id, academic_year_id, schoolId]
+    ).then((r) => r.rows[0]?.id || null);
 
     const enroll = await client.query(
-      `INSERT INTO student.studentenrollments (school_id, student_id, section_id, academic_year_id, status)
-       VALUES ($1, $2, $3, $4, 'active') RETURNING id`,
-      [schoolId, studentId, section_id, academic_year_id]
+      `INSERT INTO student.studentenrollments (
+         school_id, student_id, section_id, academic_year_id, class_id, enrolled_by, status
+       ) VALUES ($1, $2, $3, $4, $5, $6, 'active') RETURNING id`,
+      [schoolId, studentId, section_id, academic_year_id, resolvedClassId, actorId]
     );
 
     await client.query('COMMIT');
@@ -97,7 +102,7 @@ export const withdrawStudentEnrollment = async (schoolId, studentId, { note }, a
     await assertStudent(client, schoolId, studentId);
 
     const result = await client.query(
-      `UPDATE student.studentenrollments SET status = 'withdrawn'
+      `UPDATE student.studentenrollments SET status = 'withdrawn', updated_at = NOW()
        WHERE student_id = $1 AND school_id = $2 AND status = 'active'
        RETURNING id`,
       [studentId, schoolId]
@@ -105,6 +110,13 @@ export const withdrawStudentEnrollment = async (schoolId, studentId, { note }, a
     if (!result.rows[0]) {
       throw new AppError('No active enrollment to withdraw.', 400, ERROR_CODES.VALIDATION_ERROR);
     }
+
+    await client.query(
+      `UPDATE student.students SET withdrawal_date = CURRENT_DATE, withdrawal_reason = $3,
+              lifecycle_status = 'suspended', updated_at = NOW()
+       WHERE id = $1 AND school_id = $2`,
+      [studentId, schoolId, note || null]
+    );
 
     await client.query('COMMIT');
     audit({

@@ -14,3 +14,21 @@ export const register = catchAsync(async (req, res) => {
 export const studentParents = catchAsync(async (req, res) => {
   sendSuccess(res, await parentService.getStudentParents(req.tenant.schoolId, req.params.id));
 });
+
+export const searchParents = catchAsync(async (req, res) => {
+  sendSuccess(res, await parentService.searchParents(req.tenant.schoolId, req.query.q));
+});
+
+export const searchStudents = catchAsync(async (req, res) => {
+  sendSuccess(res, await parentService.searchStudentsForParentLink(req.tenant.schoolId, req.query.q));
+});
+
+export const linkStudents = catchAsync(async (req, res) => {
+  const { student_ids } = req.body;
+  sendSuccess(res, await parentService.linkParentToStudents(
+    req.tenant.schoolId,
+    req.params.id,
+    student_ids || [],
+    req.tenant.userId
+  ));
+});

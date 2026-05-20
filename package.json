@@ -11,12 +11,20 @@
     "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
     "start": "node src/server.js",
     "test": "jest",
-    "up": "docker-compose up -d",
-    "down": "docker-compose down",
-    "app:log": "docker-compose logs -f app",
-    "hasura:log": "docker-compose logs -f hasura",
-    "console": "hasura console --project hasura --admin-secret supersecret --endpoint http://localhost:8082",
-    "seed:neon": "node scripts/seed-neon.mjs"
+    "up": "bash scripts/sms-dev.sh up",
+    "down": "bash scripts/sms-dev.sh down",
+    "down:v": "bash scripts/sms-dev.sh down-v",
+    "reset": "bash scripts/sms-dev.sh reset",
+    "migrate": "bash scripts/sms-dev.sh migrate",
+    "migrate:psql": "bash scripts/sms-dev.sh migrate-psql",
+    "migrate:status": "bash scripts/sms-dev.sh status",
+    "seed": "bash scripts/sms-dev.sh seed",
+    "ps": "bash scripts/sms-dev.sh ps",
+    "app:log": "bash scripts/sms-dev.sh logs app",
+    "hasura:log": "bash scripts/sms-dev.sh logs hasura",
+    "console": "hasura console --project hasura/hasura --admin-secret supersecret --endpoint http://localhost:8082",
+    "seed:neon": "node scripts/seed-neon.mjs",
+    "worker:compute": "node scripts/computation-worker.mjs"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

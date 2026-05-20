@@ -31,9 +31,9 @@ const classListSelect = `
 
 export const listClasses = async (schoolId, queryParams) => {
   const { page, limit, offset } = getPaginationParams(queryParams);
-  const { search, academic_year_id } = queryParams;
+  const { search, academic_year_id, grade_id, section_id } = queryParams;
 
-  const conditions = ['c.school_id = $1'];
+  const conditions = ['c.school_id = $1', 'c.is_deleted = false'];
   const params = [schoolId];
   let idx = 2;
 
@@ -45,6 +45,14 @@ export const listClasses = async (schoolId, queryParams) => {
   if (academic_year_id) {
     conditions.push(`c.academic_year_id = $${idx++}`);
     params.push(academic_year_id);
+  }
+  if (grade_id) {
+    conditions.push(`c.grade_id = $${idx++}`);
+    params.push(grade_id);
+  }
+  if (section_id) {
+    conditions.push(`c.section_id = $${idx++}`);
+    params.push(section_id);
   }
 
   const where = conditions.join(' AND ');
@@ -118,59 +126,112 @@ export const getClassProfile = async (schoolId, classId) => {
 };
 
 export const createClass = async (data, schoolId, actorId) => {
-  const { name, grade_id, grade_name, capacity, academic_year_id, section_name } = data;
+  const { name, grade_id, grade_name, capacity, academic_year_id, section_id, section_name } = data;
   const client = await getClient();
 
   try {
     await client.query('BEGIN');
 
     let resolvedGradeId = grade_id;
+    let sectionId = section_id || null;
+    let sectionLabel = section_name?.trim() || null;
+    let gradeLabel = null;
+
+    if (sectionId) {
+      const secRow = await client.query(
+        `SELECT s.id, s.name, s.grade_id, g.name AS grade_name
+         FROM academic.sections s
+         JOIN academic.grades g ON g.id = s.grade_id
+         WHERE s.id = $1 AND s.school_id = $2`,
+        [sectionId, schoolId]
+      );
+      if (!secRow.rows[0]) {
+        throw new AppError('Section not found. Create it under Academic Setup first.', 404, ERROR_CODES.NOT_FOUND);
+      }
+      resolvedGradeId = secRow.rows[0].grade_id;
+      sectionLabel = secRow.rows[0].name;
+      gradeLabel = secRow.rows[0].grade_name;
+      if (grade_id && grade_id !== resolvedGradeId) {
+        throw new AppError('Section does not belong to the selected grade.', 400, ERROR_CODES.VALIDATION_ERROR);
+      }
+    }
+
     if (!resolvedGradeId && grade_name?.trim()) {
       const existing = await client.query(
-        `SELECT id FROM academic.grades WHERE school_id = $1 AND LOWER(name) = LOWER($2)`,
+        `SELECT id, name FROM academic.grades WHERE school_id = $1 AND LOWER(name) = LOWER($2)`,
         [schoolId, grade_name.trim()]
       );
       if (existing.rows[0]) {
         resolvedGradeId = existing.rows[0].id;
+        gradeLabel = existing.rows[0].name;
       } else {
         const ins = await client.query(
-          `INSERT INTO academic.grades (school_id, name) VALUES ($1, $2) RETURNING id`,
+          `INSERT INTO academic.grades (school_id, name) VALUES ($1, $2) RETURNING id, name`,
           [schoolId, grade_name.trim()]
         );
         resolvedGradeId = ins.rows[0].id;
+        gradeLabel = ins.rows[0].name;
       }
     }
     if (!resolvedGradeId) {
-      throw new AppError('Grade is required (select or enter grade name).', 400, ERROR_CODES.VALIDATION_ERROR);
+      throw new AppError('Grade is required (select grade or use an existing section).', 400, ERROR_CODES.VALIDATION_ERROR);
     }
 
     const gradeCheck = await client.query(
-      `SELECT id FROM academic.grades WHERE id = $1 AND school_id = $2`,
+      `SELECT id, name FROM academic.grades WHERE id = $1 AND school_id = $2`,
       [resolvedGradeId, schoolId]
     );
     if (!gradeCheck.rows[0]) {
       throw new AppError('Grade not found in this school.', 404, ERROR_CODES.NOT_FOUND);
     }
+    if (!gradeLabel) gradeLabel = gradeCheck.rows[0].name;
 
     const yearCheck = await client.query(
-      `SELECT id FROM academic.academicyears WHERE id = $1 AND school_id = $2`,
+      `SELECT id FROM academic.academicyears WHERE id = $1 AND school_id = $2 AND is_deleted = false`,
       [academic_year_id, schoolId]
     );
     if (!yearCheck.rows[0]) {
       throw new AppError('Academic year not found.', 404, ERROR_CODES.NOT_FOUND);
     }
 
-    const sectionRes = await client.query(
-      `INSERT INTO academic.sections (school_id, grade_id, name) 
-       VALUES ($1, $2, $3) RETURNING id`,
-      [schoolId, resolvedGradeId, section_name]
-    );
-    const sectionId = sectionRes.rows[0].id;
+    if (!sectionId) {
+      if (!sectionLabel) {
+        throw new AppError('Section is required (select from Academic Setup or enter a name).', 400, ERROR_CODES.VALIDATION_ERROR);
+      }
+      const existingSec = await client.query(
+        `SELECT id FROM academic.sections
+         WHERE school_id = $1 AND grade_id = $2 AND LOWER(name) = LOWER($3)`,
+        [schoolId, resolvedGradeId, sectionLabel]
+      );
+      if (existingSec.rows[0]) {
+        sectionId = existingSec.rows[0].id;
+      } else {
+        const sectionRes = await client.query(
+          `INSERT INTO academic.sections (school_id, grade_id, name)
+           VALUES ($1, $2, $3) RETURNING id`,
+          [schoolId, resolvedGradeId, sectionLabel]
+        );
+        sectionId = sectionRes.rows[0].id;
+      }
+    }
+
+    const displayName = name?.trim() || `${gradeLabel} - ${sectionLabel}`;
 
     const classRes = await client.query(
-      `INSERT INTO academic.classes (school_id, section_id, name, grade_id, capacity, academic_year_id)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [schoolId, sectionId, name, resolvedGradeId, capacity, academic_year_id]
+      `INSERT INTO academic.classes (
+         school_id, section_id, name, grade_id, grade_level_id, capacity, academic_year_id, room_number, created_by
+       ) VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8)
+       ON CONFLICT (section_id, academic_year_id)
+       DO UPDATE SET
+         name = EXCLUDED.name,
+         capacity = EXCLUDED.capacity,
+         grade_id = EXCLUDED.grade_id,
+         grade_level_id = EXCLUDED.grade_level_id,
+         room_number = COALESCE(EXCLUDED.room_number, academic.classes.room_number),
+         is_deleted = false,
+         updated_at = NOW()
+       RETURNING id`,
+      [schoolId, sectionId, displayName, resolvedGradeId, capacity, academic_year_id, data.room_number || null, actorId]
     );
 
     await client.query('COMMIT');
@@ -186,9 +247,6 @@ export const createClass = async (data, schoolId, actorId) => {
     return { class_id: classRes.rows[0].id, section_id: sectionId };
   } catch (err) {
     await client.query('ROLLBACK');
-    if (err.code === '23505') {
-      throw new AppError('A class already exists for this section and academic year.', 409, ERROR_CODES.DUPLICATE_ENTRY);
-    }
     throw err;
   } finally {
     client.release();

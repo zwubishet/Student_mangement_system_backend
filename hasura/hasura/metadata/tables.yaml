@@ -1008,8 +1008,15 @@
         columns:
           - score
           - grade
+          - grade_points
           - remarks
+          - teacher_notes
+          - is_absent
+          - is_passed
+          - mark_status
           - exam_subject_id
+          - exam_id
+          - schedule_id
           - id
           - student_id
         filter:
@@ -1023,7 +1030,9 @@
         columns:
           - score
           - grade
+          - grade_points
           - remarks
+          - mark_status
           - exam_subject_id
           - id
           - student_id
@@ -1034,8 +1043,14 @@
         columns:
           - score
           - grade
+          - grade_points
           - remarks
+          - teacher_notes
+          - is_absent
+          - mark_status
           - exam_subject_id
+          - exam_id
+          - schedule_id
           - id
           - student_id
         filter:
@@ -1063,6 +1078,13 @@
           table:
             name: examsubjects
             schema: operations
+    - name: exam_schedules
+      using:
+        foreign_key_constraint_on:
+          column: exam_id
+          table:
+            name: exam_schedules
+            schema: operations
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
@@ -1072,19 +1094,26 @@
           - name
           - term_id
           - weightage
+          - status
+          - exam_type
+          - max_score
+          - pass_score
+          - exam_date
+          - is_deleted
           - created_at
         filter:
-          _and:
-            - examsubjects:
-                exam:
-                  school_id:
-                    _eq: X-Hasura-School-Id
+          school_id:
+            _eq: X-Hasura-School-Id
         allow_aggregations: true
     - role: SUPER_ADMIN
       permission:
         columns:
           - weightage
           - name
+          - status
+          - exam_type
+          - max_score
+          - pass_score
           - created_at
           - id
           - school_id
@@ -1096,16 +1125,17 @@
         columns:
           - weightage
           - name
+          - status
+          - exam_type
+          - max_score
+          - pass_score
           - created_at
           - id
           - school_id
           - term_id
         filter:
-          examsubjects:
-            subject:
-              teacherassignments:
-                teacher_id:
-                  _eq: X-Hasura-User-Id
+          school_id:
+            _eq: X-Hasura-School-Id
         allow_aggregations: true
 - table:
     name: examsubjects
@@ -1235,9 +1265,20 @@
     name: guardians
     schema: student
   object_relationships:
-    - name: student
+    - name: school
       using:
-        foreign_key_constraint_on: student_id
+        foreign_key_constraint_on: school_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  array_relationships:
+    - name: guardian_links
+      using:
+        foreign_key_constraint_on:
+          column: guardian_id
+          table:
+            name: guardian_links
+            schema: student
 - table:
     name: studentenrollments
     schema: student
@@ -1334,12 +1375,12 @@
           table:
             name: examresults
             schema: operations
-    - name: guardians
+    - name: guardian_links
       using:
         foreign_key_constraint_on:
           column: student_id
           table:
-            name: guardians
+            name: guardian_links
             schema: student
     - name: invoices
       using:
@@ -1583,19 +1624,23 @@
             _eq: X-Hasura-School-Id
 
 - table:
-    name: student_guardians
+    name: guardian_links
     schema: student
   object_relationships:
     - name: student
       using:
         foreign_key_constraint_on: student_id
+    - name: guardian
+      using:
+        foreign_key_constraint_on: guardian_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
         columns: '*'
         filter:
-          school_id:
-            _eq: X-Hasura-School-Id
+          student:
+            school_id:
+              _eq: X-Hasura-School-Id
 
 - table:
     name: school_pdf_templates
@@ -1637,6 +1682,149 @@
 - table:
     name: teacher_documents
     schema: academic
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+# ─── Grading system (178050) ───────────────────────────────────────────────────
+
+- table:
+    name: exam_schedules
+    schema: operations
+  object_relationships:
+    - name: exam
+      using:
+        foreign_key_constraint_on: exam_id
+    - name: class
+      using:
+        foreign_key_constraint_on: class_id
+    - name: subject
+      using:
+        foreign_key_constraint_on: subject_id
+  array_relationships:
+    - name: examresults
+      using:
+        foreign_key_constraint_on:
+          column: schedule_id
+          table:
+            name: examresults
+            schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: TEACHER
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: exam_types
+    schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: TEACHER
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: grading_scale_profiles
+    schema: operations
+  array_relationships:
+    - name: grading_scales
+      using:
+        foreign_key_constraint_on:
+          column: profile_id
+          table:
+            name: grading_scales
+            schema: operations
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: grading_scales
+    schema: operations
+  object_relationships:
+    - name: profile
+      using:
+        foreign_key_constraint_on: profile_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: TEACHER
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: computed_results
+    schema: operations
+  object_relationships:
+    - name: student
+      using:
+        foreign_key_constraint_on: student_id
+    - name: exam
+      using:
+        foreign_key_constraint_on: exam_id
+  select_permissions:
+    - role: SCHOOL_ADMIN
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: TEACHER
+      permission:
+        columns: '*'
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+    - role: PARENT
+      permission:
+        columns:
+          - percentage
+          - grade_letter
+          - gpa_points
+          - rank_in_class
+          - is_passed
+          - student_id
+          - subject_id
+          - term_id
+        filter:
+          school_id:
+            _eq: X-Hasura-School-Id
+
+- table:
+    name: computation_runs
+    schema: operations
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:

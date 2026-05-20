@@ -12,8 +12,17 @@ const handlePgUniqueViolation = (err) => {
   return new AppError(`${field} already exists.`, 409, ERROR_CODES.DUPLICATE_ENTRY);
 };
 
-const handlePgForeignKeyViolation = () =>
-  new AppError('Referenced record does not exist.', 400, ERROR_CODES.INVALID_OPERATION);
+const handlePgForeignKeyViolation = (err) => {
+  const detail = err.detail || err.message || '';
+  if (/delete|update on table/i.test(detail) || /violates foreign key/i.test(err.message)) {
+    return new AppError(
+      'Cannot complete action: related records still exist. Remove dependencies first.',
+      400,
+      ERROR_CODES.VALIDATION_ERROR
+    );
+  }
+  return new AppError('Referenced record does not exist.', 400, ERROR_CODES.INVALID_OPERATION);
+};
 
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
@@ -51,7 +60,7 @@ export const globalErrorHandler = (err, req, res, next) => {
   if (err.name === 'JsonWebTokenError') error = handleJWTError();
   if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
   if (err.code === '23505') error = handlePgUniqueViolation(err);
-  if (err.code === '23503') error = handlePgForeignKeyViolation();
+  if (err.code === '23503') error = handlePgForeignKeyViolation(err);
 
   if (process.env.NODE_ENV === 'development') {
     sendErrorDev(error, res);

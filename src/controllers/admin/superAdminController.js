@@ -38,17 +38,17 @@ export const listSchoolsLegacy = catchAsync(async (req, res) => {
 });
 
 export const getSchool = catchAsync(async (req, res) => {
-  const data = await platformService.getSchoolById(req.params.id);
+  const data = await platformService.getSchoolByIdPlatform(req.params.id);
   sendSuccess(res, data);
 });
 
 export const createSchool = catchAsync(async (req, res) => {
-  const data = await platformService.createSchoolWithAdmin(req.platform.userId, req.body);
+  const data = await platformService.createSchoolWithAdminPlatform(req.platform.userId, req.body);
   sendSuccess(res, data, 201);
 });
 
 export const updateSchool = catchAsync(async (req, res) => {
-  const data = await platformService.updateSchool(req.platform.userId, req.params.id, req.body);
+  const data = await platformService.updateSchoolPlatform(req.platform.userId, req.params.id, req.body);
   sendSuccess(res, data);
 });
 
@@ -58,13 +58,14 @@ export const updateSchoolStatus = catchAsync(async (req, res, next) => {
     return next(new AppError('Platform administrator access required.', 403));
   }
 
-  const { school_id, status } = parseStatusBody(req.body);
+  const parsed = parseStatusBody(req.body);
+  const { school_id, status, suspended_reason: reason } = parsed;
   if (!school_id || !status) {
     return next(new AppError('school_id and status are required.', 400));
   }
 
   const actorId = req.platform?.userId || session?.['x-hasura-user-id'];
-  const data = await platformService.updateSchoolStatus(actorId, school_id, status);
+  const data = await platformService.updateSchoolStatusPlatform(actorId, school_id, status, reason);
 
   if (session) {
     return res.json(data);
@@ -108,5 +109,19 @@ export const getSettings = catchAsync(async (req, res) => {
 
 export const patchSettings = catchAsync(async (req, res) => {
   const data = await platformService.updatePlatformSettings(req.platform.userId, req.body);
+  sendSuccess(res, data);
+});
+
+export const getFeatureFlags = catchAsync(async (req, res) => {
+  const data = await platformService.getSchoolFeatureFlags(req.params.id);
+  sendSuccess(res, data);
+});
+
+export const putFeatureFlags = catchAsync(async (req, res) => {
+  const data = await platformService.setSchoolFeatureFlags(
+    req.platform.userId,
+    req.params.id,
+    req.body.features
+  );
   sendSuccess(res, data);
 });

@@ -2,6 +2,8 @@ import { query, getClient } from '../config/db.js';
 import { AppError, ERROR_CODES } from '../utils/errors.js';
 import { hashPassword } from '../utils/auth.js';
 import { audit, AUDIT_ACTIONS } from '../utils/audit.js';
+import { mapEmploymentType } from '../constants/staff.js';
+import * as staffService from './staffService.js';
 
 const auditTeacher = (actorId, schoolId, action, teacherId, meta = {}) =>
   audit({ userId: actorId, schoolId, action, entity: 'teacher', entityId: teacherId, meta });
@@ -26,7 +28,8 @@ const buildTeacherFilters = (schoolId, q) => {
 
   if (q.search) {
     conditions.push(
-      `(t.first_name ILIKE $${idx} OR t.last_name ILIKE $${idx} OR t.email ILIKE $${idx})`
+      `(t.first_name ILIKE $${idx} OR t.last_name ILIKE $${idx} OR t.email ILIKE $${idx}
+        OR sp.staff_id_number ILIKE $${idx})`
     );
     params.push(`%${q.search}%`);
     idx++;
@@ -68,12 +71,19 @@ const buildTeacherFilters = (schoolId, q) => {
 export const getTeacherStats = async (schoolId) => {
   const result = await query(
     `SELECT
-       COUNT(*) FILTER (WHERE deleted_at IS NULL)::int AS total,
-       COUNT(*) FILTER (WHERE deleted_at IS NULL AND COALESCE(status,'active') = 'active')::int AS active,
-       COUNT(*) FILTER (WHERE status = 'archived')::int AS archived,
-       COUNT(*) FILTER (WHERE leave_status = 'on_leave')::int AS on_leave,
-       COUNT(*) FILTER (WHERE employment_type = 'full_time')::int AS full_time
-     FROM academic.teachers WHERE school_id = $1`,
+       COUNT(*) FILTER (WHERE t.deleted_at IS NULL)::int AS total,
+       COUNT(*) FILTER (WHERE t.deleted_at IS NULL AND COALESCE(t.status,'active') = 'active')::int AS active,
+       COUNT(*) FILTER (WHERE t.status = 'archived')::int AS archived,
+       COUNT(*) FILTER (WHERE t.leave_status = 'on_leave')::int AS on_leave,
+       COUNT(*) FILTER (WHERE COALESCE(sp.employment_type::text, t.employment_type) IN ('permanent','full_time'))::int AS permanent,
+       COUNT(*) FILTER (
+         WHERE sp.licence_expiry_date IS NOT NULL
+           AND sp.licence_expiry_date <= CURRENT_DATE + INTERVAL '90 days'
+           AND sp.is_active = true
+       )::int AS licences_expiring_soon
+     FROM academic.teachers t
+     LEFT JOIN identity.staff_profiles sp ON sp.id = t.staff_profile_id
+     WHERE t.school_id = $1`,
     [schoolId]
   );
   return result.rows[0];
@@ -90,24 +100,29 @@ export const listTeachers = async (schoolId, queryParams) => {
     query(
       `SELECT 
          t.id, t.user_id, t.first_name, t.last_name, t.email, t.phone, t.hire_date,
-         t.department, t.employment_type, t.leave_status, t.status, t.created_at,
+         t.department, COALESCE(sp.employment_type::text, t.employment_type) AS employment_type,
+         t.leave_status, t.status, t.created_at,
+         sp.staff_id_number, sp.licence_expiry_date, sp.city, sp.is_active AS staff_is_active,
          COALESCE(u.status, t.status) AS account_status,
          COUNT(DISTINCT ta.section_id)::int AS assigned_sections,
          COUNT(DISTINCT ta.subject_id)::int AS assigned_subjects,
          string_agg(DISTINCT sub.name, ', ') AS subject_names
        FROM academic.teachers t
+       LEFT JOIN identity.staff_profiles sp ON sp.id = t.staff_profile_id
        LEFT JOIN identity.users u ON t.user_id = u.id
        LEFT JOIN academic.teacherassignments ta ON ta.teacher_id = t.user_id
        LEFT JOIN academic.subjects sub ON sub.id = ta.subject_id
        WHERE ${where}
        GROUP BY t.id, t.user_id, t.first_name, t.last_name, t.email, t.phone, t.hire_date,
-                t.department, t.employment_type, t.leave_status, t.status, t.created_at, u.status
+                t.department, sp.employment_type, t.employment_type, t.leave_status, t.status,
+                t.created_at, u.status, sp.staff_id_number, sp.licence_expiry_date, sp.city, sp.is_active
        ORDER BY ${sortCol} ${order} NULLS LAST
        LIMIT $${idx} OFFSET $${idx + 1}`,
       [...params, limit, offset]
     ),
     query(
       `SELECT COUNT(DISTINCT t.id) FROM academic.teachers t
+       LEFT JOIN identity.staff_profiles sp ON sp.id = t.staff_profile_id
        LEFT JOIN identity.users u ON t.user_id = u.id
        LEFT JOIN academic.teacherassignments ta ON ta.teacher_id = t.user_id
        WHERE ${where}`,
@@ -128,7 +143,13 @@ export const getTeacherProfile = async (schoolId, teacherId) => {
   );
   if (!base.rows[0]) throw new AppError('Teacher not found', 404, ERROR_CODES.NOT_FOUND);
 
-  const [assignments, qualifications, notes, documents, availability, activity] = await Promise.all([
+  const includePayroll = true;
+  const [staffProfile, contracts, leave, appraisals, cpd, assignments, qualifications, notes, documents, availability, activity] = await Promise.all([
+    staffService.getStaffProfileByTeacher(schoolId, teacherId, { includePayroll }).catch(() => null),
+    staffService.listStaffContracts(schoolId, teacherId).catch(() => []),
+    staffService.listStaffLeave(schoolId, teacherId).catch(() => []),
+    staffService.listStaffAppraisals(schoolId, teacherId).catch(() => []),
+    staffService.listStaffCpd(schoolId, teacherId).catch(() => []),
     query(
       `SELECT ta.id, sec.id AS section_id, sec.name AS section_name,
               sub.id AS subject_id, sub.name AS subject_name, g.name AS grade_name
@@ -158,6 +179,12 @@ export const getTeacherProfile = async (schoolId, teacherId) => {
 
   return {
     ...base.rows[0],
+    ...(staffProfile || {}),
+    staff_profile: staffProfile,
+    contracts,
+    leave_records: leave,
+    appraisals,
+    cpd_records: cpd,
     assignments: assignments.rows,
     qualifications: qualifications.rows,
     notes: notes.rows,
@@ -176,8 +203,15 @@ export const getTeacherById = async (schoolId, teacherId) => getTeacherProfile(s
 export const createTeacher = async (data, schoolId, actorId) => {
   const {
     first_name, last_name, email, phone, hire_date,
-    department, employment_type, qualification_summary, address,
+    department, employment_type, qualification_summary, address, home_address,
+    staff_id_number, teaching_licence_number, licence_expiry_date, specialisation_subjects,
+    date_of_birth, gender, nationality, religion, city, region,
+    emergency_contact_name, emergency_contact_phone, emergency_contact_rel,
+    highest_degree, degree_subject, university_name, graduation_year, years_of_experience,
   } = data;
+  const staffIdNum = staff_id_number || data.staff_id || `STAFF-${Date.now().toString(36).toUpperCase()}`;
+  const hireDate = hire_date || new Date().toISOString().slice(0, 10);
+  const empType = mapEmploymentType(employment_type);
   const client = await getClient();
 
   try {
@@ -194,13 +228,42 @@ export const createTeacher = async (data, schoolId, actorId) => {
        SELECT $1, id FROM identity.roles WHERE name = 'TEACHER' LIMIT 1`,
       [userId]
     );
+
+    const staffRes = await client.query(
+      `INSERT INTO identity.staff_profiles (
+         school_id, user_id, staff_id_number, hire_date, employment_type, department,
+         teaching_licence_number, licence_expiry_date, specialisation_subjects,
+         date_of_birth, gender, nationality, religion, home_address, city, region,
+         emergency_contact_name, emergency_contact_phone, emergency_contact_rel,
+         highest_degree, degree_subject, university_name, graduation_year, years_of_experience,
+         created_by
+       ) VALUES (
+         $1,$2,$3,$4,$5::identity.employment_type,$6,$7,$8,$9,$10,$11,$12,$13,
+         $14,$15,$16,$17,$18,$19,$20,
+         $21::identity.highest_degree,$22,$23,$24,$25
+       ) RETURNING id`,
+      [
+        schoolId, userId, staffIdNum, hireDate, empType, department || null,
+        teaching_licence_number || null, licence_expiry_date || null,
+        specialisation_subjects || [],
+        date_of_birth || null, gender || null, nationality || 'Ethiopian', religion || null,
+        home_address || address || null, city || null, region || null,
+        emergency_contact_name || null, emergency_contact_phone || null, emergency_contact_rel || null,
+        highest_degree || null, degree_subject || null, university_name || null,
+        graduation_year || null, years_of_experience ?? 0, actorId,
+      ]
+    );
+    const staffProfileId = staffRes.rows[0].id;
+
     const teacherRes = await client.query(
       `INSERT INTO academic.teachers (
-         school_id, user_id, first_name, last_name, email, phone, hire_date,
+         school_id, user_id, staff_profile_id, first_name, last_name, email, phone, hire_date,
          department, employment_type, qualification_summary, address, status
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'active') RETURNING id`,
-      [schoolId, userId, first_name, last_name, email, phone, hire_date,
-        department, employment_type, qualification_summary, address]
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active') RETURNING id`,
+      [
+        schoolId, userId, staffProfileId, first_name, last_name, email, phone, hireDate,
+        department, empType, qualification_summary, home_address || address,
+      ]
     );
     await client.query('COMMIT');
 
@@ -218,31 +281,124 @@ export const createTeacher = async (data, schoolId, actorId) => {
 };
 
 export const updateTeacher = async (schoolId, teacherId, data, actorId) => {
-  const allowed = [
+  const teacherAllowed = [
     'first_name', 'last_name', 'phone', 'hire_date', 'department',
     'employment_type', 'leave_status', 'qualification_summary', 'address', 'status',
   ];
-  const fields = [];
-  const params = [];
-  let idx = 1;
-  for (const key of allowed) {
+  const staffAllowed = [
+    'staff_id_number', 'hire_date', 'employment_type', 'department',
+    'teaching_licence_number', 'licence_expiry_date', 'specialisation_subjects',
+    'date_of_birth', 'gender', 'nationality', 'religion', 'photo_url',
+    'home_address', 'city', 'region',
+    'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_rel',
+    'highest_degree', 'degree_subject', 'university_name', 'graduation_year', 'years_of_experience',
+    'additional_certifications', 'previous_schools',
+    'bank_name', 'bank_account_number', 'bank_branch',
+    'tax_identification_number', 'pension_number', 'payment_method',
+    'termination_date', 'termination_reason', 'is_active',
+  ];
+
+  const ctx = await query(
+    `SELECT staff_profile_id, user_id FROM academic.teachers WHERE school_id = $1 AND id = $2 AND deleted_at IS NULL`,
+    [schoolId, teacherId]
+  );
+  if (!ctx.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
+
+  const tFields = [];
+  const tParams = [];
+  let tIdx = 1;
+  for (const key of teacherAllowed) {
     if (data[key] !== undefined) {
-      fields.push(`${key} = $${idx++}`);
-      params.push(data[key]);
+      tFields.push(`${key} = $${tIdx++}`);
+      tParams.push(key === 'employment_type' ? mapEmploymentType(data[key]) : data[key]);
     }
   }
-  if (!fields.length) throw new AppError('No valid fields to update.', 400, ERROR_CODES.VALIDATION_ERROR);
+  if (data.home_address !== undefined && data.address === undefined) {
+    tFields.push(`address = $${tIdx++}`);
+    tParams.push(data.home_address);
+  }
 
-  params.push(schoolId, teacherId);
-  const result = await query(
-    `UPDATE academic.teachers SET ${fields.join(', ')}, updated_at = NOW()
-     WHERE school_id = $${idx++} AND id = $${idx} AND deleted_at IS NULL RETURNING id`,
-    params
-  );
-  if (!result.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
+  const sFields = [];
+  const sParams = [];
+  let sIdx = 1;
+  for (const key of staffAllowed) {
+    if (data[key] !== undefined) {
+      if (key === 'employment_type') {
+        sFields.push(`${key} = $${sIdx++}::identity.employment_type`);
+        sParams.push(mapEmploymentType(data[key]));
+      } else if (key === 'highest_degree') {
+        sFields.push(`${key} = $${sIdx++}::identity.highest_degree`);
+        sParams.push(data[key]);
+      } else if (key === 'additional_certifications' || key === 'previous_schools') {
+        sFields.push(`${key} = $${sIdx++}::jsonb`);
+        sParams.push(JSON.stringify(data[key]));
+      } else {
+        sFields.push(`${key} = $${sIdx++}`);
+        sParams.push(data[key]);
+      }
+    }
+  }
+  if (data.first_name !== undefined) {
+    await query(`UPDATE identity.users SET first_name = $1 WHERE id = $2`, [data.first_name, ctx.rows[0].user_id]);
+  }
+  if (data.last_name !== undefined) {
+    await query(`UPDATE identity.users SET last_name = $1 WHERE id = $2`, [data.last_name, ctx.rows[0].user_id]);
+  }
+
+  if (!tFields.length && !sFields.length) {
+    throw new AppError('No valid fields to update.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  if (tFields.length) {
+    tParams.push(schoolId, teacherId);
+    await query(
+      `UPDATE academic.teachers SET ${tFields.join(', ')}, updated_at = NOW()
+       WHERE school_id = $${tIdx++} AND id = $${tIdx}`,
+      tParams
+    );
+  }
+  let staffProfileId = ctx.rows[0].staff_profile_id;
+  if (!staffProfileId && (sFields.length || data.staff_id_number)) {
+    const teacherRow = await query(
+      `SELECT user_id, hire_date, department, employment_type, address, email
+       FROM academic.teachers WHERE id = $1`,
+      [teacherId]
+    );
+    const t = teacherRow.rows[0];
+    const ins = await query(
+      `INSERT INTO identity.staff_profiles (
+         school_id, user_id, staff_id_number, hire_date, employment_type, department, home_address, created_by
+       ) VALUES ($1,$2,$3,$4,$5::identity.employment_type,$6,$7,$8) RETURNING id`,
+      [
+        schoolId,
+        t.user_id,
+        data.staff_id_number || `STAFF-${teacherId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+        data.hire_date || t.hire_date || new Date().toISOString().slice(0, 10),
+        mapEmploymentType(data.employment_type || t.employment_type),
+        data.department ?? t.department,
+        data.home_address || data.address || t.address,
+        actorId,
+      ]
+    );
+    staffProfileId = ins.rows[0].id;
+    await query(
+      `UPDATE academic.teachers SET staff_profile_id = $1 WHERE id = $2`,
+      [staffProfileId, teacherId]
+    );
+  }
+
+  if (sFields.length && staffProfileId) {
+    sParams.push(staffProfileId, schoolId);
+    await query(
+      `UPDATE identity.staff_profiles SET ${sFields.join(', ')}, updated_at = NOW()
+       WHERE id = $${sIdx++} AND school_id = $${sIdx}`,
+      sParams
+    );
+  }
+
   auditTeacher(actorId, schoolId, AUDIT_ACTIONS.UPDATE, teacherId, data);
   logTeacherActivity({ schoolId, teacherId, actorId, action: 'UPDATED', meta: data });
-  return result.rows[0];
+  return { id: teacherId };
 };
 
 export const archiveTeacher = async (schoolId, teacherId, actorId) => {
@@ -352,9 +508,9 @@ export const importTeachers = async (schoolId, rows, actorId) => {
 
 export const exportTeachersCsv = async (schoolId, queryParams) => {
   const { rows } = await listTeachers(schoolId, { ...queryParams, page: 1, limit: 10000 });
-  const header = 'first_name,last_name,email,phone,department,employment_type,status,sections\n';
+  const header = 'staff_id_number,first_name,last_name,email,phone,department,employment_type,status,sections\n';
   const lines = rows.map((r) =>
-    [r.first_name, r.last_name, r.email, r.phone, r.department, r.employment_type, r.status, r.assigned_sections]
+    [r.staff_id_number, r.first_name, r.last_name, r.email, r.phone, r.department, r.employment_type, r.status, r.assigned_sections]
       .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
   );
   return header + lines.join('\n');

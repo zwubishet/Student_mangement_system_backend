@@ -55,12 +55,13 @@ export const updateSchoolSettings = async (schoolId, data, actorId) => {
     if (Object.keys(settingsData).length) {
       const cols = Object.keys(settingsData);
       const vals = Object.values(settingsData);
-      const setClauses = cols.map((c, i) => `${c} = $${i + 2}`).join(', ');
+      const placeholders = cols.map((_, i) => `$${i + 2}`).join(', ');
+      const setClauses = cols.map((c) => `${c} = EXCLUDED.${c}`).join(', ');
 
       await db.query(
         `INSERT INTO tenancy.school_settings (school_id, ${cols.join(', ')})
-         VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(', ')})
-         ON CONFLICT (school_id) DO UPDATE SET ${setClauses}`,
+         VALUES ($1, ${placeholders})
+         ON CONFLICT (school_id) DO UPDATE SET ${setClauses}, updated_at = NOW()`,
         [schoolId, ...vals]
       );
     }

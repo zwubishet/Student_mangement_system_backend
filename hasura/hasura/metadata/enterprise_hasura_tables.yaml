@@ -31,19 +31,23 @@
             _eq: X-Hasura-School-Id
 
 - table:
-    name: student_guardians
+    name: guardian_links
     schema: student
   object_relationships:
     - name: student
       using:
         foreign_key_constraint_on: student_id
+    - name: guardian
+      using:
+        foreign_key_constraint_on: guardian_id
   select_permissions:
     - role: SCHOOL_ADMIN
       permission:
         columns: '*'
         filter:
-          school_id:
-            _eq: X-Hasura-School-Id
+          student:
+            school_id:
+              _eq: X-Hasura-School-Id
 
 - table:
     name: school_pdf_templates

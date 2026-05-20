@@ -6,6 +6,7 @@ import {
   updateSchoolSchema,
   updateSchoolStatusSchema,
   patchPlatformSettingsSchema,
+  featureFlagsSchema,
 } from '../utils/schemas.js';
 import * as ctrl from '../controllers/admin/superAdminController.js';
 
@@ -28,6 +29,9 @@ router.get('/audit/tenants', requirePlatformAdmin, ctrl.listTenantAudit);
 
 router.get('/settings', requirePlatformAdmin, ctrl.getSettings);
 router.patch('/settings', requirePlatformAdmin, validate(patchPlatformSettingsSchema), ctrl.patchSettings);
+
+router.get('/schools/:id/features', requirePlatformAdmin, ctrl.getFeatureFlags);
+router.put('/schools/:id/features', requirePlatformAdmin, validate(featureFlagsSchema), ctrl.putFeatureFlags);
 
 /** Hasura synchronous action */
 router.post(

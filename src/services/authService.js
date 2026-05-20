@@ -1,63 +1,17 @@
-import { getClient, query } from '../config/db.js';
-import { hashPassword, comparePasswords, generateHasuraToken } from '../utils/auth.js';
+import { query } from '../config/db.js';
+import { comparePasswords, generateHasuraToken } from '../utils/auth.js';
 import { AppError, ERROR_CODES } from '../utils/errors.js';
-import bcrypt from 'bcryptjs';
+import { createSchoolWithAdmin, assertSchoolLoginAllowed } from './tenant/schoolService.js';
 
-export const registerSchoolAndAdmin = async (data) => {
-  const client = await getClient();
-  
-  try {
-    await client.query('BEGIN');
-
-    // 1. Create School
-    const schoolRes = await client.query(
-      `INSERT INTO tenancy.schools (name, school_address, status) 
-       VALUES ($1, $2, 'active') RETURNING id`,
-      [data.school_name, data.school_address]
-    );
-    const schoolId = schoolRes.rows[0].id;
-
-    // 2. Create Admin User
-    const hashedPw = await bcrypt.hash(data.admin_password, 12);
-    const userRes = await client.query(
-      `INSERT INTO identity.users (email, password_hash, school_id, first_name, last_name, status)
-       VALUES ($1, $2, $3, $4, $5, 'active') RETURNING id`,
-      [data.admin_email, hashedPw, schoolId, data.first_name, data.last_name]
-    );
-    const userId = userRes.rows[0].id;
-
-    // 3. Assign SCHOOL_ADMIN Role
-    await client.query(
-      `INSERT INTO identity.userroles (user_id, role_id)
-       SELECT $1, id FROM identity.roles
-       WHERE name = 'SCHOOL_ADMIN' AND school_id IS NULL
-       LIMIT 1`,
-      [userId]
-    );
-
-    // 4. Generate Token for immediate login
-    const token = generateHasuraToken({
-      id: userId,
-      schoolId: schoolId,
-      roles: ['SCHOOL_ADMIN'],
-      firstName: data.first_name,
-      lastName: data.last_name
-    });
-
-    await client.query('COMMIT');
-
-    return { schoolId, userId, token };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+export const registerSchoolAndAdmin = async (data, options = {}) => {
+  return createSchoolWithAdmin(data, options);
 };
 
 export const loginUser = async (email, password) => {
   const userQuery = `
-    SELECT u.*, s.status AS school_status
+    SELECT u.*,
+           s.status AS school_status, s.plan AS school_plan, s.trial_ends_at,
+           s.is_deleted AS school_deleted, s.slug AS school_slug
     FROM identity.users u
     LEFT JOIN tenancy.schools s ON u.school_id = s.id
     WHERE lower(u.email) = $1
@@ -100,11 +54,14 @@ export const loginUser = async (email, password) => {
     throw new AppError('This account has been deactivated. Please contact support.', 403);
   }
 
-  if (!isPlatformAdmin && user.school_status !== 'active') {
-    throw new AppError('This account or school has been deactivated. Please contact support.', 403);
-  }
-
   if (!isPlatformAdmin) {
+    assertSchoolLoginAllowed({
+      status: user.school_status?.toString?.() ?? user.school_status,
+      plan: user.school_plan?.toString?.() ?? user.school_plan,
+      trial_ends_at: user.trial_ends_at,
+      is_deleted: user.school_deleted,
+    });
+
     const maintRes = await query(
       `SELECT value FROM tenancy.platform_settings WHERE key = 'maintenance_mode'`
     );
@@ -114,15 +71,13 @@ export const loginUser = async (email, password) => {
     }
   }
 
-  // 5. Generate Hasura Token with School ID and Roles
-  // Change this line in loginUser:
-  const token = generateHasuraToken({ 
-    id: user.id, 
-    schoolId: user.school_id, // Ensure you use snake_case from DB
-    roles: roles,             // Put roles inside the object
-    firstName: user.first_name, 
-    lastName: user.last_name, 
-    teacherId: teacherInfo ? teacherInfo.teacher_id : null // Include teacher ID if exists
+  const token = generateHasuraToken({
+    id: user.id,
+    schoolId: user.school_id,
+    roles,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    teacherId: teacherInfo ? teacherInfo.teacher_id : null,
   });
 
   return {
@@ -133,7 +88,8 @@ export const loginUser = async (email, password) => {
       firstName: user.first_name,
       lastName: user.last_name,
       schoolId: user.school_id,
-      roles: roles
-    }
+      schoolSlug: user.school_slug,
+      roles,
+    },
   };
 };

@@ -6,7 +6,10 @@ const router = express.Router();
 router.use(requireTenant, requireRole('SCHOOL_ADMIN'));
 
 router.get('/', ctrl.list);
+router.get('/search', ctrl.searchParents);
+router.get('/search-students', ctrl.searchStudents);
 router.post('/register', ctrl.register);
+router.post('/:id/link-students', ctrl.linkStudents);
 router.get('/by-student/:id', ctrl.studentParents);
 
 export default router;

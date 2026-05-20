@@ -1,8 +1,16 @@
 import { query, getClient } from '../../config/db.js';
 import redisClient from '../../config/redis.js';
 import { AppError, ERROR_CODES } from '../../utils/errors.js';
-import { PLATFORM_SCHOOL_ID, SCHOOL_STATUSES } from '../../constants/platform.js';
-import { registerSchoolAndAdmin } from '../authService.js';
+import { PLATFORM_SCHOOL_ID } from '../../constants/platform.js';
+import {
+  createSchoolWithAdmin,
+  getSchoolById,
+  updateSchool,
+  updateSchoolStatus,
+  listFeatureFlags,
+  upsertFeatureFlags,
+  mapSchoolRow,
+} from '../tenant/schoolService.js';
 
 const logPlatformAudit = async (actorId, action, entity, entityId, meta = {}) => {
   await query(
@@ -12,12 +20,14 @@ const logPlatformAudit = async (actorId, action, entity, entityId, meta = {}) =>
   );
 };
 
+const notDeleted = `s.id != $1 AND COALESCE(s.is_deleted, false) = false`;
+
 export const getPlatformOverview = async () => {
-  const [schools, users, subs, recent] = await Promise.all([
+  const [schools, users, recent] = await Promise.all([
     query(
-      `SELECT status, COUNT(*)::int AS count
+      `SELECT status::text AS status, COUNT(*)::int AS count
        FROM tenancy.schools
-       WHERE id != $1
+       WHERE id != $1 AND COALESCE(is_deleted, false) = false
        GROUP BY status`,
       [PLATFORM_SCHOOL_ID]
     ),
@@ -25,18 +35,14 @@ export const getPlatformOverview = async () => {
       `SELECT COUNT(*)::int AS total
        FROM identity.users u
        JOIN tenancy.schools s ON s.id = u.school_id
-       WHERE s.id != $1`,
+       WHERE s.id != $1 AND COALESCE(s.is_deleted, false) = false`,
       [PLATFORM_SCHOOL_ID]
-    ),
-    query(
-      `SELECT status, COUNT(*)::int AS count
-       FROM tenancy.subscriptions
-       GROUP BY status`
     ),
     query(
       `SELECT COUNT(*)::int AS count
        FROM tenancy.schools
-       WHERE id != $1 AND created_at >= NOW() - INTERVAL '30 days'`,
+       WHERE id != $1 AND COALESCE(is_deleted, false) = false
+         AND created_at >= NOW() - INTERVAL '30 days'`,
       [PLATFORM_SCHOOL_ID]
     ),
   ]);
@@ -48,12 +54,13 @@ export const getPlatformOverview = async () => {
     schools: {
       total: totalSchools,
       active: byStatus.active ?? 0,
+      pending: byStatus.pending ?? 0,
       suspended: byStatus.suspended ?? 0,
       inactive: byStatus.inactive ?? 0,
+      trial_expired: byStatus.trial_expired ?? 0,
       created_last_30_days: recent.rows[0]?.count ?? 0,
     },
     users: { total: users.rows[0]?.total ?? 0 },
-    subscriptions: subs.rows,
   };
 };
 
@@ -64,14 +71,12 @@ export const getPlatformHealth = async () => {
     redis: 'unknown',
     timestamp: new Date().toISOString(),
   };
-
   try {
     await query('SELECT 1');
     health.database = 'ok';
   } catch {
     health.database = 'error';
   }
-
   try {
     if (redisClient.isOpen) {
       await redisClient.ping();
@@ -82,52 +87,58 @@ export const getPlatformHealth = async () => {
   } catch {
     health.redis = 'error';
   }
-
   return health;
 };
 
-export const listSchools = async ({ search, status, limit = 50, offset = 0 } = {}) => {
+export const listSchools = async ({ search, status, plan, limit = 50, offset = 0 } = {}) => {
   const params = [PLATFORM_SCHOOL_ID];
   let sql = `
-    SELECT s.id, s.name, s.school_address, s.domain, s.plan, s.status, s.created_at,
+    SELECT s.id, s.name, s.slug, s.address, s.school_address, s.plan::text AS plan,
+           s.status::text AS status, s.email, s.city, s.region, s.trial_ends_at,
+           s.created_at, s.provisioned_at,
            COUNT(DISTINCT u.id)::int AS user_count,
-           COUNT(DISTINCT st.id)::int AS student_count,
-           sub.plan AS subscription_plan,
-           sub.status AS subscription_status
+           COUNT(DISTINCT st.id)::int AS student_count
     FROM tenancy.schools s
     LEFT JOIN identity.users u ON u.school_id = s.id
     LEFT JOIN student.students st ON st.school_id = s.id
-    LEFT JOIN LATERAL (
-      SELECT plan, status FROM tenancy.subscriptions
-      WHERE school_id = s.id
-      ORDER BY period_end DESC NULLS LAST
-      LIMIT 1
-    ) sub ON true
-    WHERE s.id != $1`;
+    WHERE ${notDeleted}`;
 
   if (status) {
     params.push(status);
-    sql += ` AND s.status = $${params.length}`;
+    sql += ` AND s.status = $${params.length}::tenancy.school_status`;
+  }
+  if (plan) {
+    params.push(plan);
+    sql += ` AND s.plan = $${params.length}::tenancy.subscription_plan`;
   }
   if (search) {
     params.push(`%${search}%`);
-    sql += ` AND (s.name ILIKE $${params.length} OR s.school_address ILIKE $${params.length})`;
+    sql += ` AND (
+      s.name ILIKE $${params.length}
+      OR s.slug ILIKE $${params.length}
+      OR s.address ILIKE $${params.length}
+      OR s.school_address ILIKE $${params.length}
+      OR s.email ILIKE $${params.length}
+    )`;
   }
 
-  sql += ` GROUP BY s.id, sub.plan, sub.status ORDER BY s.created_at DESC`;
-
+  sql += ` GROUP BY s.id ORDER BY s.created_at DESC`;
   params.push(limit, offset);
   sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
   const countParams = [PLATFORM_SCHOOL_ID];
-  let countSql = `SELECT COUNT(*)::int AS total FROM tenancy.schools s WHERE s.id != $1`;
+  let countSql = `SELECT COUNT(*)::int AS total FROM tenancy.schools s WHERE ${notDeleted}`;
   if (status) {
     countParams.push(status);
-    countSql += ` AND s.status = $${countParams.length}`;
+    countSql += ` AND s.status = $${countParams.length}::tenancy.school_status`;
+  }
+  if (plan) {
+    countParams.push(plan);
+    countSql += ` AND s.plan = $${countParams.length}::tenancy.subscription_plan`;
   }
   if (search) {
     countParams.push(`%${search}%`);
-    countSql += ` AND (s.name ILIKE $${countParams.length} OR s.school_address ILIKE $${countParams.length})`;
+    countSql += ` AND (s.name ILIKE $${countParams.length} OR s.slug ILIKE $${countParams.length})`;
   }
 
   const [rows, countRes] = await Promise.all([
@@ -135,99 +146,52 @@ export const listSchools = async ({ search, status, limit = 50, offset = 0 } = {
     query(countSql, countParams),
   ]);
 
-  return { rows: rows.rows, total: countRes.rows[0]?.total ?? 0 };
+  return {
+    rows: rows.rows.map((r) => mapSchoolRow({ ...r, address: r.address ?? r.school_address })),
+    total: countRes.rows[0]?.total ?? 0,
+  };
 };
 
-export const getSchoolById = async (schoolId) => {
-  const result = await query(
-    `SELECT s.id, s.name, s.school_address, s.domain, s.plan, s.status, s.created_at,
-            ss.email AS settings_email, ss.phone AS settings_phone, ss.timezone,
-            sub.id AS subscription_id, sub.plan AS subscription_plan, sub.status AS subscription_status,
-            sub.period_start, sub.period_end,
-            (SELECT COUNT(*)::int FROM identity.users WHERE school_id = s.id) AS user_count,
-            (SELECT COUNT(*)::int FROM student.students WHERE school_id = s.id) AS student_count,
-            (SELECT COUNT(*)::int FROM academic.teachers WHERE school_id = s.id) AS teacher_count
-     FROM tenancy.schools s
-     LEFT JOIN tenancy.school_settings ss ON ss.school_id = s.id
-     LEFT JOIN LATERAL (
-       SELECT * FROM tenancy.subscriptions WHERE school_id = s.id
-       ORDER BY period_end DESC NULLS LAST LIMIT 1
-     ) sub ON true
-     WHERE s.id = $1 AND s.id != $2`,
-    [schoolId, PLATFORM_SCHOOL_ID]
-  );
-  if (!result.rows[0]) {
-    throw new AppError('School not found.', 404, ERROR_CODES.NOT_FOUND);
-  }
-  return result.rows[0];
+export const getSchoolByIdPlatform = (schoolId) => getSchoolById(schoolId);
+
+export const updateSchoolStatusPlatform = async (actorId, schoolId, status, reason) => {
+  const data = await updateSchoolStatus(schoolId, status, { reason, actorId });
+  await logPlatformAudit(actorId, 'school.status_change', 'school', schoolId, { status, reason });
+  return data;
 };
 
-export const updateSchoolStatus = async (actorId, schoolId, status) => {
-  if (!SCHOOL_STATUSES.includes(status)) {
-    throw new AppError('Invalid status value.', 400, ERROR_CODES.VALIDATION_ERROR);
-  }
-
-  const result = await query(
-    `UPDATE tenancy.schools SET status = $1
-     WHERE id = $2 AND id != $3
-     RETURNING id, name, status`,
-    [status, schoolId, PLATFORM_SCHOOL_ID]
-  );
-  if (!result.rows[0]) {
-    throw new AppError('School not found.', 404, ERROR_CODES.NOT_FOUND);
-  }
-
-  await logPlatformAudit(actorId, 'school.status_change', 'school', schoolId, { status });
-  return result.rows[0];
-};
-
-export const createSchoolWithAdmin = async (actorId, data) => {
-  const result = await registerSchoolAndAdmin(data);
+export const createSchoolWithAdminPlatform = async (actorId, data) => {
+  const result = await createSchoolWithAdmin(data, { provisionedBy: actorId });
   await logPlatformAudit(actorId, 'school.create', 'school', result.schoolId, {
+    slug: result.slug,
     admin_email: data.admin_email,
   });
   return result;
 };
 
-export const updateSchool = async (actorId, schoolId, patch) => {
-  const fields = [];
-  const values = [];
-  const allowed = ['name', 'school_address', 'domain', 'plan'];
-
-  for (const key of allowed) {
-    if (patch[key] !== undefined) {
-      values.push(patch[key]);
-      fields.push(`${key} = $${values.length}`);
-    }
-  }
-  if (!fields.length) {
-    throw new AppError('No valid fields to update.', 400, ERROR_CODES.VALIDATION_ERROR);
-  }
-
-  values.push(schoolId, PLATFORM_SCHOOL_ID);
-  const result = await query(
-    `UPDATE tenancy.schools SET ${fields.join(', ')}
-     WHERE id = $${values.length - 1} AND id != $${values.length}
-     RETURNING id, name, school_address, domain, plan, status`,
-    values
-  );
-  if (!result.rows[0]) {
-    throw new AppError('School not found.', 404, ERROR_CODES.NOT_FOUND);
-  }
-
+export const updateSchoolPlatform = async (actorId, schoolId, patch) => {
+  const data = await updateSchool(schoolId, patch);
   await logPlatformAudit(actorId, 'school.update', 'school', schoolId, patch);
-  return result.rows[0];
+  return data;
+};
+
+export const getSchoolFeatureFlags = (schoolId) => listFeatureFlags(schoolId);
+
+export const setSchoolFeatureFlags = async (actorId, schoolId, flags) => {
+  await getSchoolById(schoolId);
+  const data = await upsertFeatureFlags(schoolId, flags, actorId);
+  await logPlatformAudit(actorId, 'school.feature_flags', 'school', schoolId, { flags });
+  return data;
 };
 
 export const listSubscriptions = async ({ status, limit = 100, offset = 0 } = {}) => {
-  const params = [];
+  const params = [PLATFORM_SCHOOL_ID];
   let sql = `
     SELECT sub.id, sub.school_id, sub.plan, sub.status, sub.period_start, sub.period_end,
-           sub.customer_id, s.name AS school_name
+           sub.customer_id, s.name AS school_name, s.slug
     FROM tenancy.subscriptions sub
     JOIN tenancy.schools s ON s.id = sub.school_id
-    WHERE s.id != $1`;
-  params.push(PLATFORM_SCHOOL_ID);
+    WHERE s.id != $1 AND COALESCE(s.is_deleted, false) = false`;
 
   if (status) {
     params.push(status);

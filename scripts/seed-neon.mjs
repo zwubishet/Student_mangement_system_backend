@@ -64,10 +64,12 @@ async function main() {
     await client.query('BEGIN');
     await ensurePlatformRoles(client);
 
+    const slug = schoolName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const schoolRes = await client.query(
-      `INSERT INTO tenancy.schools (name, school_address, status)
-       VALUES ($1, $2, 'active') RETURNING id, name`,
-      [schoolName, schoolAddress]
+      `INSERT INTO tenancy.schools (name, slug, address, status, plan, trial_ends_at, provisioned_at)
+       VALUES ($1, $2, $3, 'active', 'trial', now() + interval '30 days', now())
+       RETURNING id, name`,
+      [schoolName, `${slug}-${Date.now().toString(36)}`, schoolAddress]
     );
     const schoolId = schoolRes.rows[0].id;
 
