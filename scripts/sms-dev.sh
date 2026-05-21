@@ -256,14 +256,20 @@ cmd_seed() {
   wait_healthy postgres 60
   bold "Seeding demo school + admin"
   local db_url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}"
-  if ! (echo >/dev/tcp/127.0.0.1/5432) 2>/dev/null; then
-    info "Postgres not on host port 5432 — seeding via docker compose exec"
-    "${COMPOSE[@]}" exec -T -e DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-      app node scripts/seed-neon.mjs
-  else
-    DATABASE_URL="$db_url" node "$ROOT/scripts/seed-neon.mjs"
-  fi
+  seed_node() {
+    local script="$1"
+    if ! (echo >/dev/tcp/127.0.0.1/5432) 2>/dev/null; then
+      info "Postgres not on host port 5432 — seeding via docker compose exec ($script)"
+      "${COMPOSE[@]}" exec -T -e DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
+        app node "scripts/${script}"
+    else
+      DATABASE_URL="$db_url" node "$ROOT/scripts/${script}"
+    fi
+  }
+  seed_node seed-neon.mjs
+  seed_node seed-demo-academy.mjs
   info "Default login: admin@demoschool.edu / DemoAdmin123!"
+  info "Teachers: teacher01@demo.local … / Teacher123!  |  Students: DEMO-G9A-001@demo.local / Student123!"
 }
 
 cmd_reset() {

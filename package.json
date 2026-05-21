@@ -24,6 +24,7 @@
     "hasura:log": "bash scripts/sms-dev.sh logs hasura",
     "console": "hasura console --project hasura/hasura --admin-secret supersecret --endpoint http://localhost:8082",
     "seed:neon": "node scripts/seed-neon.mjs",
+    "seed:demo": "node scripts/seed-demo-academy.mjs",
     "worker:compute": "node scripts/computation-worker.mjs"
   },
   "devDependencies": {

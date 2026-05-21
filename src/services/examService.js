@@ -452,7 +452,8 @@ export const getMarkEntrySheet = async (schoolId, examId, scheduleId) => {
     const fallback = await query(
       `SELECT s.id, s.admission_number, s.first_name, s.last_name,
               er.id AS result_id, er.score, er.grade, er.grade_points, er.is_absent, er.is_passed,
-              er.teacher_notes, er.verified_at, er.mark_status, er.submitted_at, er.locked_at
+              er.teacher_notes, er.verified_at, er.mark_status, er.submitted_at, er.locked_at,
+            er.rejection_reason, er.rejected_at
        FROM student.studentenrollments se
        JOIN student.students s ON s.id = se.student_id AND s.deleted_at IS NULL AND s.school_id = $1
        LEFT JOIN operations.examresults er
