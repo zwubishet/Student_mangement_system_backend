@@ -32,7 +32,8 @@ export const loginUser = async (email, password) => {
     ORDER BY CASE r.name
       WHEN 'SUPER_ADMIN' THEN 0
       WHEN 'SCHOOL_ADMIN' THEN 1
-      ELSE 2
+      WHEN 'FINANCE' THEN 2
+      ELSE 3
     END, r.name
   `;
   const rolesRes = await query(rolesQuery, [user.id]);

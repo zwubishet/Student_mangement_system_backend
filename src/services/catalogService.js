@@ -344,22 +344,68 @@ export const addClassSubject = async (schoolId, { class_id, subject_id, periods_
   return result.rows[0];
 };
 
-export const listTimetableSlots = async (schoolId, classId) => {
+export const listTimetableSlots = async (schoolId, { class_id, section_id, academic_year_id } = {}) => {
   const params = [schoolId];
   let sql = `
     SELECT ts.*, sub.name AS subject_name,
-           u.first_name AS teacher_first_name, u.last_name AS teacher_last_name
+           u.first_name AS teacher_first_name, u.last_name AS teacher_last_name,
+           c.id AS class_id, c.name AS class_name, sec.id AS section_id, sec.name AS section_name,
+           g.name AS grade_name, ay.name AS academic_year
     FROM academic.timetable_slots ts
     JOIN academic.subjects sub ON sub.id = ts.subject_id
+    JOIN academic.classes c ON c.id = ts.class_id
+    JOIN academic.sections sec ON sec.id = c.section_id
+    LEFT JOIN academic.grades g ON g.id = sec.grade_id
+    LEFT JOIN academic.academicyears ay ON ay.id = c.academic_year_id
     LEFT JOIN identity.users u ON u.id = ts.teacher_id
-    WHERE ts.school_id = $1`;
-  if (classId) {
-    params.push(classId);
-    sql += ` AND ts.class_id = $2`;
+    WHERE ts.school_id = $1 AND COALESCE(c.is_deleted, false) = false`;
+  if (class_id) {
+    params.push(class_id);
+    sql += ` AND ts.class_id = $${params.length}`;
   }
-  sql += ' ORDER BY ts.day_of_week, ts.period_number';
+  if (section_id) {
+    params.push(section_id);
+    sql += ` AND c.section_id = $${params.length}`;
+  }
+  if (academic_year_id) {
+    params.push(academic_year_id);
+    sql += ` AND c.academic_year_id = $${params.length}`;
+  }
+  sql += ' ORDER BY ts.day_of_week, ts.period_number, sub.name';
   const result = await query(sql, params);
   return result.rows;
+};
+
+/** Section-level timetable view for admin (all slots for section's class in a year). */
+export const getSectionTimetableBundle = async (schoolId, sectionId, academicYearId) => {
+  const section = await getSection(schoolId, sectionId);
+  if (!section) throw new AppError('Section not found.', 404, ERROR_CODES.NOT_FOUND);
+
+  const classForYear = academicYearId
+    ? section.linked_classes?.find((c) => c.academic_year_id === academicYearId)
+    : section.linked_classes?.[0];
+
+  const slots = await listTimetableSlots(schoolId, {
+    section_id: sectionId,
+    academic_year_id: academicYearId || undefined,
+  });
+
+  return {
+    section: {
+      id: section.id,
+      name: section.name,
+      grade_id: section.grade_id,
+      grade_name: section.grade_name,
+    },
+    academic_year_id: academicYearId || null,
+    class: classForYear || null,
+    linked_classes: section.linked_classes || [],
+    slots,
+    summary: {
+      slot_count: slots.length,
+      days_used: [...new Set(slots.map((s) => s.day_of_week))].length,
+    },
+  };
 };
 
 export const createTimetableSlot = async (schoolId, data) => {

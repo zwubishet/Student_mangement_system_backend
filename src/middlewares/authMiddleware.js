@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import AppError from '../utils/appError.js';
 import catchAsync from '../utils/catchAsync.js';
 import { query } from '../config/db.js';
+import { PLATFORM_SCHOOL_ID } from '../constants/platform.js';
 
 export const restrictBlacklisted = catchAsync(async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -87,6 +88,19 @@ export const requirePlatformAdmin = catchAsync(async (req, res, next) => {
   next();
 });
 
+const resolveSuperAdminTenantSchool = async (headerSchoolId) => {
+  const tenantSchoolId = String(headerSchoolId || '').trim();
+  if (!tenantSchoolId || tenantSchoolId === PLATFORM_SCHOOL_ID) {
+    return null;
+  }
+  const res = await query(
+    `SELECT id, name FROM tenancy.schools
+     WHERE id = $1 AND COALESCE(is_deleted, false) = false`,
+    [tenantSchoolId]
+  );
+  return res.rows[0] || null;
+};
+
 export const requireTenant = catchAsync(async (req, res, next) => {
   let token;
   if (req.headers.authorization?.startsWith('Bearer')) {
@@ -98,24 +112,46 @@ export const requireTenant = catchAsync(async (req, res, next) => {
   const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   const claims = decoded['https://hasura.io/jwt/claims'] || {};
   const userId = claims['x-hasura-user-id'];
-  const schoolId = claims['x-hasura-school-id'];
+  const tokenSchoolId = claims['x-hasura-school-id'];
   const defaultRole = claims['x-hasura-default-role'];
   const allowedRoles = claims['x-hasura-allowed-roles'] || [];
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [defaultRole].filter(Boolean);
 
-  if (!userId || !schoolId) {
+  if (!userId) {
+    return next(new AppError('Invalid session: missing user.', 401));
+  }
+
+  if (roles.includes('SUPER_ADMIN')) {
+    const tenantHeader = req.headers['x-tenant-school-id'];
+    const managed = await resolveSuperAdminTenantSchool(tenantHeader);
+    if (managed) {
+      req.tenant = {
+        userId,
+        schoolId: managed.id,
+        schoolName: managed.name,
+        role: 'SCHOOL_ADMIN',
+        roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'],
+        isPlatformManage: true,
+      };
+      req.user = { id: userId, schoolId: managed.id, role: 'SCHOOL_ADMIN' };
+      return next();
+    }
+  }
+
+  if (!tokenSchoolId) {
     return next(new AppError('Invalid session: missing tenant claims.', 401));
   }
 
   req.tenant = {
     userId,
-    schoolId,
+    schoolId: tokenSchoolId,
     role: defaultRole,
-    roles: Array.isArray(allowedRoles) ? allowedRoles : [defaultRole].filter(Boolean),
+    roles,
   };
 
   req.user = {
     id: userId,
-    schoolId,
+    schoolId: tokenSchoolId,
     role: defaultRole,
   };
 
@@ -123,6 +159,9 @@ export const requireTenant = catchAsync(async (req, res, next) => {
 });
 
 export const requireRole = (...roles) => (req, res, next) => {
+  if (req.tenant?.isPlatformManage) {
+    return next();
+  }
   const userRoles = req.tenant?.roles || [];
   if (!roles.some((role) => userRoles.includes(role))) {
     return next(new AppError('You do not have access to this resource.', 403));

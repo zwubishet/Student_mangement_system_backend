@@ -21,7 +21,7 @@ import * as ctrl from '../controllers/catalog/catalogController.js';
 const router = express.Router();
 const admin = requireRole('SCHOOL_ADMIN');
 
-router.use(requireTenant, requireRole('SCHOOL_ADMIN', 'TEACHER'));
+router.use(requireTenant, requireRole('SCHOOL_ADMIN', 'TEACHER', 'FINANCE'));
 
 router.get('/overview', ctrl.getOverview);
 

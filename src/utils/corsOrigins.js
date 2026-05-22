@@ -12,16 +12,25 @@ export function resolveCorsOptions() {
         '[CORS] CORS_ORIGIN is missing or still a placeholder. Browser login from Vercel will fail. Set CORS_ORIGIN=https://your-app.vercel.app on Render.'
       );
     }
-    return { origin: true };
+    return {
+      origin: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-School-Id'],
+    };
   }
 
   if (raw === '*') {
-    return { origin: true };
+    return { origin: true, allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-School-Id'] };
   }
 
   const allowed = raw.split(',').map((o) => o.trim()).filter(Boolean);
 
+  const corsExtras = {
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-School-Id'],
+  };
+
   return {
+    ...corsExtras,
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (allowed.includes(origin)) return callback(null, true);
@@ -31,6 +40,5 @@ export function resolveCorsOptions() {
       console.warn(`[CORS] Blocked origin: ${origin}. Allowed: ${allowed.join(', ')}`);
       callback(null, false);
     },
-    credentials: true,
   };
 }

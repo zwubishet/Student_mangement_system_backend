@@ -125,3 +125,93 @@ export const putFeatureFlags = catchAsync(async (req, res) => {
   );
   sendSuccess(res, data);
 });
+
+export const listUsers = catchAsync(async (req, res) => {
+  const data = await platformService.listPlatformUsers({
+    schoolId: req.query.school_id,
+    search: req.query.search,
+    role: req.query.role,
+    status: req.query.status,
+    limit: req.query.limit ? Number(req.query.limit) : 50,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+  });
+  sendSuccess(res, data.rows, 200, { total: data.total });
+});
+
+export const listStudents = catchAsync(async (req, res) => {
+  const data = await platformService.listPlatformStudents({
+    schoolId: req.query.school_id,
+    search: req.query.search,
+    status: req.query.status,
+    limit: req.query.limit ? Number(req.query.limit) : 50,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+  });
+  sendSuccess(res, data.rows, 200, { total: data.total });
+});
+
+export const listTeachers = catchAsync(async (req, res) => {
+  const data = await platformService.listPlatformTeachers({
+    schoolId: req.query.school_id,
+    search: req.query.search,
+    status: req.query.status,
+    limit: req.query.limit ? Number(req.query.limit) : 50,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+  });
+  sendSuccess(res, data.rows, 200, { total: data.total });
+});
+
+export const getActivity = catchAsync(async (req, res) => {
+  const data = await platformService.getPlatformActivityFeed({
+    schoolId: req.query.school_id,
+    limit: req.query.limit ? Number(req.query.limit) : 60,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+  });
+  sendSuccess(res, data);
+});
+
+export const getSchoolSummary = catchAsync(async (req, res) => {
+  const data = await platformService.getSchoolTenantSummary(req.params.id);
+  sendSuccess(res, data);
+});
+
+export const getPlatformFinance = catchAsync(async (req, res) => {
+  const { getPlatformFinanceOverview } = await import('../../services/finance/financeService.js');
+  const data = await getPlatformFinanceOverview();
+  sendSuccess(res, data);
+});
+
+export const getPlatformFinanceTransactions = catchAsync(async (req, res) => {
+  const { listPlatformTransactions } = await import('../../services/finance/financeService.js');
+  const data = await listPlatformTransactions({
+    schoolId: req.query.school_id,
+    type: req.query.type,
+    limit: req.query.limit ? Number(req.query.limit) : 150,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+  });
+  sendSuccess(res, data);
+});
+
+export const getPlatformFinanceCommissions = catchAsync(async (req, res) => {
+  const { listPlatformCommissions } = await import('../../services/finance/financeService.js');
+  const data = await listPlatformCommissions({
+    schoolId: req.query.school_id,
+    limit: req.query.limit ? Number(req.query.limit) : 150,
+  });
+  sendSuccess(res, data);
+});
+
+export const getPlatformFinanceBilling = catchAsync(async (req, res) => {
+  const { listPlatformBillingInvoices } = await import('../../services/finance/financeService.js');
+  const data = await listPlatformBillingInvoices({ status: req.query.status });
+  sendSuccess(res, data);
+});
+
+export const createPlatformFinanceOfficer = catchAsync(async (req, res, next) => {
+  const { createFinanceOfficer } = await import('../../services/finance/financeUserService.js');
+  const schoolId = req.params.schoolId || req.body.school_id;
+  if (!schoolId) {
+    return next(new AppError('school_id required', 400));
+  }
+  const data = await createFinanceOfficer(schoolId, req.body, req.platform.userId);
+  sendSuccess(res, data, 201);
+});

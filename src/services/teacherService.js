@@ -24,7 +24,9 @@ const buildTeacherFilters = (schoolId, q) => {
   let idx = 2;
 
   if (q.include_deleted !== 'true') conditions.push('t.deleted_at IS NULL');
-  if (q.include_archived !== 'true') conditions.push(`COALESCE(t.status, 'active') != 'archived'`);
+  if (q.include_archived !== 'true' && q.status !== 'archived') {
+    conditions.push(`COALESCE(t.status, 'active') != 'archived'`);
+  }
 
   if (q.search) {
     conditions.push(

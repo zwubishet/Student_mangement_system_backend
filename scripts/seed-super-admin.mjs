@@ -37,8 +37,8 @@ async function main() {
     await client.query('BEGIN');
 
     await client.query(
-      `INSERT INTO tenancy.schools (id, name, school_address, status, plan)
-       VALUES ($1, 'EduManage Platform', 'System', 'active', 'platform')
+      `INSERT INTO tenancy.schools (id, name, slug, school_address, status, plan)
+       VALUES ($1, 'EduManage Platform', 'edumanage-platform', 'System', 'active', 'enterprise')
        ON CONFLICT (id) DO NOTHING`,
       [PLATFORM_SCHOOL_ID]
     );

@@ -3,7 +3,45 @@ import { AppError, ERROR_CODES } from '../utils/errors.js';
 import { audit, AUDIT_ACTIONS } from '../utils/audit.js';
 import { logTeacherActivity } from '../utils/entityActivity.js';
 
-export const resolveStaffContext = async (schoolId, teacherId) => {
+export const ensureStaffProfileForTeacher = async (schoolId, teacherId, actorId) => {
+  const r = await query(
+    `SELECT t.id AS teacher_id, t.user_id, t.hire_date, t.department, t.employment_type, t.address,
+            t.staff_profile_id, sp.id AS staff_id
+     FROM academic.teachers t
+     LEFT JOIN identity.staff_profiles sp ON sp.id = t.staff_profile_id AND sp.is_deleted = false
+     WHERE t.school_id = $1 AND t.id = $2 AND t.deleted_at IS NULL`,
+    [schoolId, teacherId]
+  );
+  if (!r.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
+  if (r.rows[0].staff_id) {
+    return { teacher_id: r.rows[0].teacher_id, staff_id: r.rows[0].staff_id };
+  }
+
+  const t = r.rows[0];
+  const ins = await query(
+    `INSERT INTO identity.staff_profiles (
+       school_id, user_id, staff_id_number, hire_date, employment_type, department, home_address, created_by
+     ) VALUES ($1,$2,$3,$4,$5::identity.employment_type,$6,$7,$8) RETURNING id`,
+    [
+      schoolId,
+      t.user_id,
+      `STAFF-${String(teacherId).replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+      t.hire_date || new Date().toISOString().slice(0, 10),
+      (t.employment_type === 'full_time' ? 'permanent' : t.employment_type) || 'permanent',
+      t.department,
+      t.address,
+      actorId,
+    ]
+  );
+  const staffId = ins.rows[0].id;
+  await query(`UPDATE academic.teachers SET staff_profile_id = $1 WHERE id = $2`, [staffId, teacherId]);
+  return { teacher_id: teacherId, staff_id: staffId };
+};
+
+export const resolveStaffContext = async (schoolId, teacherId, actorId = null) => {
+  if (actorId) {
+    return ensureStaffProfileForTeacher(schoolId, teacherId, actorId);
+  }
   const r = await query(
     `SELECT t.id AS teacher_id, t.user_id, sp.id AS staff_id
      FROM academic.teachers t
@@ -13,7 +51,10 @@ export const resolveStaffContext = async (schoolId, teacherId) => {
   );
   if (!r.rows[0]) throw new AppError('Teacher not found.', 404, ERROR_CODES.NOT_FOUND);
   if (!r.rows[0].staff_id) {
-    throw new AppError('Staff profile not linked. Run latest migration.', 500, ERROR_CODES.NOT_FOUND);
+    throw new AppError(
+      'No staff HR profile yet. Save payroll & employment details on the teacher profile first.',
+      400
+    );
   }
   return r.rows[0];
 };
@@ -60,7 +101,7 @@ export const listStaffContracts = async (schoolId, teacherId) => {
 };
 
 export const createStaffContract = async (schoolId, teacherId, data, actorId) => {
-  const { staff_id, teacher_id } = await resolveStaffContext(schoolId, teacherId);
+  const { staff_id, teacher_id } = await ensureStaffProfileForTeacher(schoolId, teacherId, actorId);
   const r = await query(
     `INSERT INTO identity.staff_contracts (
        school_id, staff_id, academic_year_id, contract_type, salary_amount, currency,
@@ -95,7 +136,7 @@ export const listStaffLeave = async (schoolId, teacherId) => {
 };
 
 export const createStaffLeave = async (schoolId, teacherId, data, actorId) => {
-  const { staff_id, teacher_id } = await resolveStaffContext(schoolId, teacherId);
+  const { staff_id, teacher_id } = await ensureStaffProfileForTeacher(schoolId, teacherId, actorId);
   const from = new Date(data.from_date);
   const to = new Date(data.to_date);
   const days = data.days_count ?? (Math.floor((to - from) / 86400000) + 1);

@@ -16,8 +16,19 @@ router.use(restrictBlacklisted);
 
 router.get('/health', requirePlatformAdmin, ctrl.getHealth);
 router.get('/overview', requirePlatformAdmin, ctrl.getOverview);
+router.get('/finance/overview', requirePlatformAdmin, ctrl.getPlatformFinance);
+router.get('/finance/transactions', requirePlatformAdmin, ctrl.getPlatformFinanceTransactions);
+router.get('/finance/commissions', requirePlatformAdmin, ctrl.getPlatformFinanceCommissions);
+router.get('/finance/billing', requirePlatformAdmin, ctrl.getPlatformFinanceBilling);
+router.post('/schools/:schoolId/finance-officers', requirePlatformAdmin, ctrl.createPlatformFinanceOfficer);
+
+router.get('/users', requirePlatformAdmin, ctrl.listUsers);
+router.get('/students', requirePlatformAdmin, ctrl.listStudents);
+router.get('/teachers', requirePlatformAdmin, ctrl.listTeachers);
+router.get('/activity', requirePlatformAdmin, ctrl.getActivity);
 
 router.get('/schools', requirePlatformAdmin, ctrl.listSchools);
+router.get('/schools/:id/summary', requirePlatformAdmin, ctrl.getSchoolSummary);
 router.get('/schools/:id', requirePlatformAdmin, ctrl.getSchool);
 router.post('/schools', requirePlatformAdmin, validate(createSchoolSchema), ctrl.createSchool);
 router.patch('/schools/:id', requirePlatformAdmin, validate(updateSchoolSchema), ctrl.updateSchool);

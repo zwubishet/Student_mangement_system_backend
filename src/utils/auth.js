@@ -7,6 +7,8 @@ export const comparePasswords = async (pw, hashed) => await bcrypt.compare(pw, h
 
 const pickDefaultRole = (roles = []) => {
   if (roles.includes('SUPER_ADMIN')) return 'SUPER_ADMIN';
+  if (roles.includes('SCHOOL_ADMIN')) return 'SCHOOL_ADMIN';
+  if (roles.includes('FINANCE')) return 'FINANCE';
   return roles[0];
 };
 

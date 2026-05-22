@@ -6,23 +6,42 @@ import { audit, AUDIT_ACTIONS } from '../utils/audit.js';
 export const listParents = async (schoolId, { search, page = 1, limit = 20 }) => {
   const offset = (page - 1) * limit;
   const params = [schoolId];
-  let filter = '';
+  let searchFilterPortal = '';
+  let searchFilterGuardian = '';
   if (search) {
     params.push(`%${search}%`);
-    filter = ` AND (p.first_name ILIKE $2 OR p.last_name ILIKE $2 OR p.email ILIKE $2 OR p.phone ILIKE $2)`;
+    const idx = params.length;
+    searchFilterPortal = ` AND (p.first_name ILIKE $${idx} OR p.last_name ILIKE $${idx} OR p.email ILIKE $${idx} OR p.phone ILIKE $${idx})`;
+    searchFilterGuardian = ` AND (g.first_name ILIKE $${idx} OR g.last_name ILIKE $${idx} OR g.email ILIKE $${idx} OR g.phone_primary ILIKE $${idx})`;
   }
+
+  const baseSql = `
+    SELECT * FROM (
+      SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.relationship,
+             COUNT(ps.student_id)::int AS linked_students,
+             'portal' AS record_type
+      FROM academic.parents p
+      LEFT JOIN academic.parentstudents ps ON ps.parent_id = p.id
+      WHERE p.school_id = $1 ${searchFilterPortal}
+      GROUP BY p.id
+
+      UNION ALL
+
+      SELECT g.id, g.first_name, g.last_name, g.email, g.phone_primary AS phone, g.relationship,
+             COUNT(gl.student_id)::int AS linked_students,
+             'guardian' AS record_type
+      FROM student.guardians g
+      LEFT JOIN student.guardian_links gl ON gl.guardian_id = g.id
+      WHERE g.school_id = $1 AND COALESCE(g.is_deleted, false) = false ${searchFilterGuardian}
+      GROUP BY g.id
+    ) combined`;
+
   const [rows, count] = await Promise.all([
     query(
-      `SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.relationship,
-              COUNT(ps.student_id)::int AS linked_students
-       FROM academic.parents p
-       LEFT JOIN academic.parentstudents ps ON ps.parent_id = p.id
-       WHERE p.school_id = $1 ${filter}
-       GROUP BY p.id ORDER BY p.last_name, p.first_name
-       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `${baseSql} ORDER BY last_name, first_name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     ),
-    query(`SELECT COUNT(*)::int AS c FROM academic.parents p WHERE p.school_id = $1 ${filter}`, params),
+    query(`SELECT COUNT(*)::int AS c FROM (${baseSql}) combined`, params),
   ]);
   return { rows: rows.rows, total: count.rows[0].c, page, limit };
 };

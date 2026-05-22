@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { emailField } from './validators.js';
 import {
   SCHOOL_STATUSES,
   SUBSCRIPTION_PLANS,
@@ -8,7 +9,7 @@ import {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: emailField.required(),
   password: Joi.string().min(6).required(),
 });
 

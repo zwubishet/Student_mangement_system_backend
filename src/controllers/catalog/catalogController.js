@@ -144,7 +144,22 @@ export const removeClassSubject = catchAsync(async (req, res) => {
 });
 
 export const getTimetable = catchAsync(async (req, res) => {
-  sendSuccess(res, await catalogService.listTimetableSlots(req.tenant.schoolId, req.query.class_id));
+  const { class_id, section_id, academic_year_id } = req.query;
+  if (section_id) {
+    sendSuccess(
+      res,
+      await catalogService.getSectionTimetableBundle(
+        req.tenant.schoolId,
+        section_id,
+        academic_year_id || null
+      )
+    );
+    return;
+  }
+  sendSuccess(
+    res,
+    await catalogService.listTimetableSlots(req.tenant.schoolId, { class_id: class_id || null })
+  );
 });
 
 export const createTimetableSlot = catchAsync(async (req, res) => {

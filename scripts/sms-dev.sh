@@ -192,7 +192,11 @@ EOSQL
 
   local count=0
   local skipped=0
-  while IFS= read -r dir; do
+  # docker compose exec reads stdin by default — that would consume the migration dir list below
+  local psql_exec=( "${COMPOSE[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" )
+
+  mapfile -t _migration_dirs < <(find "$HASURA_DIR/migrations" -mindepth 1 -maxdepth 1 -type d | sort)
+  for dir in "${_migration_dirs[@]}"; do
     [[ -z "$dir" ]] && continue
     local version
     version=$(basename "$dir")
@@ -200,8 +204,9 @@ EOSQL
     [[ -f "$up_file" ]] || continue
 
     local exists
-    exists=$("${COMPOSE[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
-      "SELECT 1 FROM public.sms_dev_migrations WHERE version = '$version' LIMIT 1" 2>/dev/null | tr -d '[:space:]')
+    exists=$("${psql_exec[@]}" -tAc \
+      "SELECT 1 FROM public.sms_dev_migrations WHERE version = '${version//\'/\'\'}' LIMIT 1" \
+      </dev/null 2>/dev/null | tr -d '[:space:]')
 
     if [[ "$exists" == "1" ]]; then
       skipped=$((skipped + 1))
@@ -209,15 +214,16 @@ EOSQL
     fi
 
     info "Applying $version"
-    if "${COMPOSE[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f - < "$up_file"; then
-      "${COMPOSE[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
-        "INSERT INTO public.sms_dev_migrations (version) VALUES ('$version') ON CONFLICT DO NOTHING" >/dev/null
+    if "${psql_exec[@]}" -v ON_ERROR_STOP=1 -f - < "$up_file"; then
+      "${psql_exec[@]}" -c \
+        "INSERT INTO public.sms_dev_migrations (version) VALUES ('${version//\'/\'\'}') ON CONFLICT DO NOTHING" \
+        </dev/null >/dev/null
       count=$((count + 1))
     else
       warn "Failed: $version (fix SQL or reset DB with: ./scripts/sms-dev.sh down-v)"
       exit 1
     fi
-  done < <(find "$HASURA_DIR/migrations" -mindepth 1 -maxdepth 1 -type d | sort)
+  done
 
   bold "Applied $count migration(s), skipped $skipped already recorded"
   warn "Hasura metadata not applied in psql mode — run: ./scripts/sms-dev.sh migrate (with Hasura CLI) for metadata"
@@ -267,8 +273,10 @@ cmd_seed() {
     fi
   }
   seed_node seed-neon.mjs
+  seed_node seed-super-admin.mjs
   seed_node seed-demo-academy.mjs
-  info "Default login: admin@demoschool.edu / DemoAdmin123!"
+  info "School admin: admin@demoschool.edu / DemoAdmin123!"
+  info "Super admin: superadmin@edumanage.io / SuperAdmin123!"
   info "Teachers: teacher01@demo.local … / Teacher123!  |  Students: DEMO-G9A-001@demo.local / Student123!"
 }
 

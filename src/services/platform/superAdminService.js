@@ -22,8 +22,11 @@ const logPlatformAudit = async (actorId, action, entity, entityId, meta = {}) =>
 
 const notDeleted = `s.id != $1 AND COALESCE(s.is_deleted, false) = false`;
 
+const tenantSchoolFilter = (alias = 's') =>
+  `${alias}.id != $1 AND COALESCE(${alias}.is_deleted, false) = false`;
+
 export const getPlatformOverview = async () => {
-  const [schools, users, recent] = await Promise.all([
+  const [schools, users, recent, students, teachers, trials, plans, activity24h] = await Promise.all([
     query(
       `SELECT status::text AS status, COUNT(*)::int AS count
        FROM tenancy.schools
@@ -45,10 +48,50 @@ export const getPlatformOverview = async () => {
          AND created_at >= NOW() - INTERVAL '30 days'`,
       [PLATFORM_SCHOOL_ID]
     ),
+    query(
+      `SELECT COUNT(*)::int AS total
+       FROM student.students st
+       JOIN tenancy.schools s ON s.id = st.school_id
+       WHERE ${tenantSchoolFilter('s')} AND st.deleted_at IS NULL`,
+      [PLATFORM_SCHOOL_ID]
+    ),
+    query(
+      `SELECT COUNT(*)::int AS total
+       FROM academic.teachers t
+       JOIN tenancy.schools s ON s.id = t.school_id
+       WHERE ${tenantSchoolFilter('s')} AND t.deleted_at IS NULL`,
+      [PLATFORM_SCHOOL_ID]
+    ),
+    query(
+      `SELECT COUNT(*)::int AS count
+       FROM tenancy.schools
+       WHERE id != $1 AND COALESCE(is_deleted, false) = false
+         AND status = 'active' AND trial_ends_at IS NOT NULL
+         AND trial_ends_at <= NOW() + INTERVAL '7 days'`,
+      [PLATFORM_SCHOOL_ID]
+    ),
+    query(
+      `SELECT plan::text AS plan, COUNT(*)::int AS count
+       FROM tenancy.schools
+       WHERE id != $1 AND COALESCE(is_deleted, false) = false
+       GROUP BY plan`,
+      [PLATFORM_SCHOOL_ID]
+    ),
+    query(
+      `SELECT COUNT(*)::int AS count FROM (
+         SELECT created_at FROM identity.platform_audit_logs
+         WHERE created_at >= NOW() - INTERVAL '24 hours'
+         UNION ALL
+         SELECT created_at FROM identity.audit_logs
+         WHERE created_at >= NOW() - INTERVAL '24 hours'
+       ) recent`,
+      []
+    ).catch(() => ({ rows: [{ count: 0 }] })),
   ]);
 
   const byStatus = Object.fromEntries(schools.rows.map((r) => [r.status, r.count]));
   const totalSchools = schools.rows.reduce((sum, r) => sum + r.count, 0);
+  const byPlan = Object.fromEntries(plans.rows.map((r) => [r.plan, r.count]));
 
   return {
     schools: {
@@ -59,9 +102,298 @@ export const getPlatformOverview = async () => {
       inactive: byStatus.inactive ?? 0,
       trial_expired: byStatus.trial_expired ?? 0,
       created_last_30_days: recent.rows[0]?.count ?? 0,
+      trials_expiring_7d: trials.rows[0]?.count ?? 0,
     },
     users: { total: users.rows[0]?.total ?? 0 },
+    students: { total: students.rows[0]?.total ?? 0 },
+    teachers: { total: teachers.rows[0]?.total ?? 0 },
+    activity_24h: activity24h.rows[0]?.count ?? 0,
+    plans: byPlan,
   };
+};
+
+export const getSchoolTenantSummary = async (schoolId) => {
+  if (schoolId === PLATFORM_SCHOOL_ID) {
+    throw new AppError('Invalid school', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const [school, counts, recentAudit] = await Promise.all([
+    getSchoolById(schoolId),
+    query(
+      `SELECT
+         COUNT(DISTINCT u.id)::int AS users,
+         COUNT(DISTINCT st.id)::int AS students,
+         COUNT(DISTINCT t.id)::int AS teachers,
+         COUNT(DISTINCT CASE WHEN st.lifecycle_status = 'active' THEN st.id END)::int AS active_students
+       FROM tenancy.schools s
+       LEFT JOIN identity.users u ON u.school_id = s.id
+       LEFT JOIN student.students st ON st.school_id = s.id AND st.deleted_at IS NULL
+       LEFT JOIN academic.teachers t ON t.school_id = s.id AND t.deleted_at IS NULL
+       WHERE s.id = $1 AND COALESCE(s.is_deleted, false) = false`,
+      [schoolId]
+    ),
+    query(
+      `SELECT al.id, al.action, al.entity, al.entity_id, al.created_at, u.email AS actor_email
+       FROM identity.audit_logs al
+       LEFT JOIN identity.users u ON u.id = al.user_id
+       WHERE al.school_id = $1
+       ORDER BY al.created_at DESC LIMIT 8`,
+      [schoolId]
+    ).catch(() => ({ rows: [] })),
+  ]);
+  return {
+    school,
+    counts: counts.rows[0] || { users: 0, students: 0, teachers: 0, active_students: 0 },
+    recent_activity: recentAudit.rows,
+  };
+};
+
+export const listPlatformUsers = async ({
+  schoolId,
+  search,
+  role,
+  status,
+  limit = 50,
+  offset = 0,
+} = {}) => {
+  const params = [PLATFORM_SCHOOL_ID];
+  let sql = `
+    SELECT u.id, u.email, u.first_name, u.last_name, u.status, u.created_at,
+           s.id AS school_id, s.name AS school_name,
+           COALESCE(
+             (SELECT string_agg(r.name, ', ' ORDER BY r.name)
+              FROM identity.userroles ur
+              JOIN identity.roles r ON r.id = ur.role_id
+              WHERE ur.user_id = u.id),
+             ''
+           ) AS roles
+    FROM identity.users u
+    JOIN tenancy.schools s ON s.id = u.school_id
+    WHERE ${tenantSchoolFilter('s')}`;
+
+  if (schoolId) {
+    params.push(schoolId);
+    sql += ` AND u.school_id = $${params.length}`;
+  }
+  if (status) {
+    params.push(status);
+    sql += ` AND u.status = $${params.length}`;
+  }
+  if (role) {
+    params.push(role);
+    sql += ` AND EXISTS (
+      SELECT 1 FROM identity.userroles ur
+      JOIN identity.roles r ON r.id = ur.role_id
+      WHERE ur.user_id = u.id AND r.name = $${params.length}
+    )`;
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    sql += ` AND (
+      u.email ILIKE $${params.length}
+      OR u.first_name ILIKE $${params.length}
+      OR u.last_name ILIKE $${params.length}
+      OR s.name ILIKE $${params.length}
+    )`;
+  }
+
+  let countSql = `
+    SELECT COUNT(DISTINCT u.id)::int AS total
+    FROM identity.users u
+    JOIN tenancy.schools s ON s.id = u.school_id
+    WHERE ${tenantSchoolFilter('s')}`;
+  const countParams = [PLATFORM_SCHOOL_ID];
+  if (schoolId) { countParams.push(schoolId); countSql += ` AND u.school_id = $${countParams.length}`; }
+  if (status) { countParams.push(status); countSql += ` AND u.status = $${countParams.length}`; }
+  if (role) {
+    countParams.push(role);
+    countSql += ` AND EXISTS (
+      SELECT 1 FROM identity.userroles ur
+      JOIN identity.roles r ON r.id = ur.role_id
+      WHERE ur.user_id = u.id AND r.name = $${countParams.length}
+    )`;
+  }
+  if (search) {
+    countParams.push(`%${search}%`);
+    countSql += ` AND (u.email ILIKE $${countParams.length} OR u.first_name ILIKE $${countParams.length} OR u.last_name ILIKE $${countParams.length} OR s.name ILIKE $${countParams.length})`;
+  }
+
+  sql += ` ORDER BY u.created_at DESC`;
+  params.push(limit, offset);
+  sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+  const [rows, countRes] = await Promise.all([
+    query(sql, params),
+    query(countSql, countParams),
+  ]);
+  return { rows: rows.rows, total: countRes.rows[0]?.total ?? 0 };
+};
+
+export const listPlatformStudents = async ({
+  schoolId,
+  search,
+  status,
+  limit = 50,
+  offset = 0,
+} = {}) => {
+  const params = [PLATFORM_SCHOOL_ID];
+  let sql = `
+    SELECT st.id, st.admission_number, st.first_name, st.last_name, st.gender,
+           st.lifecycle_status, st.is_active, st.created_at,
+           s.id AS school_id, s.name AS school_name,
+           u.email,
+           g.name AS grade_name, sec.name AS section_name
+    FROM student.students st
+    JOIN tenancy.schools s ON s.id = st.school_id
+    LEFT JOIN identity.users u ON u.id = st.user_id
+    LEFT JOIN student.studentenrollments se ON se.student_id = st.id AND se.status = 'active'
+    LEFT JOIN academic.sections sec ON sec.id = se.section_id
+    LEFT JOIN academic.classes c ON c.id = se.class_id
+    LEFT JOIN academic.grades g ON g.id = COALESCE(c.grade_id, sec.grade_id)
+    WHERE ${tenantSchoolFilter('s')} AND st.deleted_at IS NULL`;
+
+  if (schoolId) {
+    params.push(schoolId);
+    sql += ` AND st.school_id = $${params.length}`;
+  }
+  if (status) {
+    params.push(status);
+    sql += ` AND st.lifecycle_status = $${params.length}`;
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    sql += ` AND (
+      st.first_name ILIKE $${params.length}
+      OR st.last_name ILIKE $${params.length}
+      OR st.admission_number ILIKE $${params.length}
+      OR u.email ILIKE $${params.length}
+      OR s.name ILIKE $${params.length}
+    )`;
+  }
+
+  let countSql = `
+    SELECT COUNT(DISTINCT st.id)::int AS total
+    FROM student.students st
+    JOIN tenancy.schools s ON s.id = st.school_id
+    LEFT JOIN identity.users u ON u.id = st.user_id
+    WHERE ${tenantSchoolFilter('s')} AND st.deleted_at IS NULL`;
+  const countParams = [PLATFORM_SCHOOL_ID];
+  if (schoolId) { countParams.push(schoolId); countSql += ` AND st.school_id = $${countParams.length}`; }
+  if (status) { countParams.push(status); countSql += ` AND st.lifecycle_status = $${countParams.length}`; }
+  if (search) {
+    countParams.push(`%${search}%`);
+    countSql += ` AND (st.first_name ILIKE $${countParams.length} OR st.last_name ILIKE $${countParams.length} OR st.admission_number ILIKE $${countParams.length} OR u.email ILIKE $${countParams.length} OR s.name ILIKE $${countParams.length})`;
+  }
+
+  sql += ` ORDER BY st.created_at DESC`;
+  params.push(limit, offset);
+  sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+  const [rows, countRes] = await Promise.all([
+    query(sql, params),
+    query(countSql, countParams),
+  ]);
+
+  return { rows: rows.rows, total: countRes.rows[0]?.total ?? 0 };
+};
+
+export const listPlatformTeachers = async ({
+  schoolId,
+  search,
+  status,
+  limit = 50,
+  offset = 0,
+} = {}) => {
+  const params = [PLATFORM_SCHOOL_ID];
+  let sql = `
+    SELECT t.id, t.first_name, t.last_name, t.email, t.phone, t.department,
+           t.status, t.leave_status, t.created_at,
+           s.id AS school_id, s.name AS school_name,
+           COUNT(DISTINCT ta.section_id)::int AS sections
+    FROM academic.teachers t
+    JOIN tenancy.schools s ON s.id = t.school_id
+    LEFT JOIN academic.teacherassignments ta ON ta.teacher_id = t.user_id
+    WHERE ${tenantSchoolFilter('s')} AND t.deleted_at IS NULL`;
+
+  if (schoolId) {
+    params.push(schoolId);
+    sql += ` AND t.school_id = $${params.length}`;
+  }
+  if (status) {
+    params.push(status);
+    sql += ` AND t.status = $${params.length}`;
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    sql += ` AND (
+      t.first_name ILIKE $${params.length}
+      OR t.last_name ILIKE $${params.length}
+      OR t.email ILIKE $${params.length}
+      OR s.name ILIKE $${params.length}
+    )`;
+  }
+
+  sql += ` GROUP BY t.id, s.id, s.name ORDER BY t.created_at DESC`;
+  params.push(limit, offset);
+  sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+  let countSql = `
+    SELECT COUNT(*)::int AS total FROM academic.teachers t
+    JOIN tenancy.schools s ON s.id = t.school_id
+    WHERE ${tenantSchoolFilter('s')} AND t.deleted_at IS NULL`;
+  const countParams = [PLATFORM_SCHOOL_ID];
+  if (schoolId) { countParams.push(schoolId); countSql += ` AND t.school_id = $${countParams.length}`; }
+  if (status) { countParams.push(status); countSql += ` AND t.status = $${countParams.length}`; }
+  if (search) {
+    countParams.push(`%${search}%`);
+    countSql += ` AND (t.first_name ILIKE $${countParams.length} OR t.last_name ILIKE $${countParams.length} OR t.email ILIKE $${countParams.length})`;
+  }
+
+  const [rows, countRes] = await Promise.all([
+    query(sql, params),
+    query(countSql, countParams),
+  ]);
+  return { rows: rows.rows, total: countRes.rows[0]?.total ?? 0 };
+};
+
+export const getPlatformActivityFeed = async ({ schoolId, limit = 60, offset = 0 } = {}) => {
+  const params = [];
+  let tenantWhere = '';
+  if (schoolId) {
+    params.push(schoolId);
+    tenantWhere = `WHERE al.school_id = $1`;
+  }
+
+  const platformSql = `
+    SELECT 'platform' AS source, pal.id::text AS id, pal.action, pal.entity,
+           pal.entity_id, pal.meta, pal.created_at,
+           u.email AS actor_email, NULL::uuid AS school_id, NULL::text AS school_name
+    FROM identity.platform_audit_logs pal
+    LEFT JOIN identity.users u ON u.id = pal.actor_id`;
+
+  const tenantSql = `
+    SELECT 'tenant' AS source, al.id::text AS id, al.action, al.entity,
+           al.entity_id, al.meta, al.created_at,
+           u.email AS actor_email, al.school_id, s.name AS school_name
+    FROM identity.audit_logs al
+    LEFT JOIN identity.users u ON u.id = al.user_id
+    LEFT JOIN tenancy.schools s ON s.id = al.school_id
+    ${tenantWhere}`;
+
+  params.push(limit, offset);
+  const lim = params.length - 1;
+  const off = params.length;
+
+  const sql = `
+    SELECT * FROM (
+      ${platformSql}
+      UNION ALL
+      ${tenantSql}
+    ) feed
+    ORDER BY created_at DESC
+    LIMIT $${lim} OFFSET $${off}`;
+
+  const result = await query(sql, params);
+  return result.rows;
 };
 
 export const getPlatformHealth = async () => {

@@ -120,7 +120,8 @@ export const getTeacherDashboard = async (schoolId, teacherUserId) => {
        JOIN academic.classes c ON c.id = esch.class_id
        JOIN academic.teacherassignments ta
          ON ta.section_id = c.section_id AND ta.subject_id = esch.subject_id AND ta.teacher_id = $1
-       WHERE er.mark_status = 'rejected' AND COALESCE(er.is_deleted, false) = false`,
+       WHERE esch.school_id = $2
+         AND er.mark_status = 'rejected' AND COALESCE(er.is_deleted, false) = false`,
       [teacherUserId, schoolId]
     ),
     query(
@@ -354,10 +355,10 @@ export const markSectionAttendance = async (schoolId, teacherUserId, sectionId, 
     await client.query('BEGIN');
     for (const { student_id, status } of records) {
       await client.query(
-        `INSERT INTO ${ATTENDANCE_TABLE} (school_id, section_id, student_id, date, status)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (student_id, section_id, date)
-         DO UPDATE SET status = EXCLUDED.status`,
+        `INSERT INTO ${ATTENDANCE_TABLE} (school_id, section_id, student_id, date, status, class_id)
+         VALUES ($1, $2, $3, $4, $5, NULL)
+         ON CONFLICT (student_id, section_id, date) WHERE (class_id IS NULL)
+         DO UPDATE SET status = EXCLUDED.status, marked_at = NOW()`,
         [schoolId, sectionId, student_id, attDate, status]
       );
     }
@@ -580,7 +581,10 @@ export const getTeacherClassReportPreview = async (schoolId, teacherUserId, sect
     query(
       `SELECT s.id AS student_id, s.admission_number, s.first_name, s.last_name,
               sub.name AS subject_name, e.name AS exam_name,
-              cr.letter_grade, cr.percentage_score, cr.grade_points, cr.rank_in_class,
+              cr.grade_letter AS letter_grade,
+              cr.percentage AS percentage_score,
+              cr.gpa_points AS grade_points,
+              cr.rank_in_class,
               cr.result_scope, t.name AS term_name
        FROM operations.computed_results cr
        JOIN student.students s ON s.id = cr.student_id

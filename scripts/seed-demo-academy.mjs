@@ -368,11 +368,16 @@ async function ensureTeacher(client, schoolId, actorId, teacherRoleId, idx, hash
 
   const exists = await client.query(`SELECT id FROM identity.users WHERE lower(email) = $1`, [email]);
   if (exists.rows[0]) {
+    const userId = exists.rows[0].id;
+    await client.query(
+      `INSERT INTO identity.userroles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [userId, teacherRoleId]
+    );
     const t = await client.query(
-      `SELECT user_id FROM academic.teachers WHERE email = $1 AND school_id = $2`,
+      `SELECT id, user_id FROM academic.teachers WHERE email = $1 AND school_id = $2`,
       [email, schoolId]
     );
-    return { user_id: exists.rows[0].id, teacher_id: t.rows[0]?.user_id, email, skipped: true };
+    return { user_id: userId, teacher_id: t.rows[0]?.id, email, skipped: true };
   }
 
   const userRes = await client.query(

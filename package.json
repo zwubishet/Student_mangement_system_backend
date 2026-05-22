@@ -15,7 +15,8 @@
     "down": "bash scripts/sms-dev.sh down",
     "down:v": "bash scripts/sms-dev.sh down-v",
     "reset": "bash scripts/sms-dev.sh reset",
-    "migrate": "bash scripts/sms-dev.sh migrate",
+    "migrate": "bash scripts/sms-dev.sh migrate-psql",
+    "migrate:hasura": "bash scripts/sms-dev.sh migrate",
     "migrate:psql": "bash scripts/sms-dev.sh migrate-psql",
     "migrate:status": "bash scripts/sms-dev.sh status",
     "seed": "bash scripts/sms-dev.sh seed",
@@ -24,6 +25,7 @@
     "hasura:log": "bash scripts/sms-dev.sh logs hasura",
     "console": "hasura console --project hasura/hasura --admin-secret supersecret --endpoint http://localhost:8082",
     "seed:neon": "node scripts/seed-neon.mjs",
+    "seed:super": "node scripts/seed-super-admin.mjs",
     "seed:demo": "node scripts/seed-demo-academy.mjs",
     "worker:compute": "node scripts/computation-worker.mjs"
   },

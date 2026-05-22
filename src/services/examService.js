@@ -495,7 +495,9 @@ export const submitMarks = async (schoolId, examId, scheduleId, payload, actorId
   if (!results?.length) throw new AppError('No results to save.', 400, ERROR_CODES.VALIDATION_ERROR);
 
   const sheet = await getMarkEntrySheet(schoolId, examId, scheduleId);
-  const { schedule, max_score: maxScore } = sheet;
+  const { schedule } = sheet;
+  const maxScore = Math.round(Number(sheet.max_score ?? schedule.max_score ?? 100));
+  const passScore = Math.round(Number(schedule.pass_score ?? maxScore * 0.5));
   if (!['DRAFT', 'ACTIVE', 'COMPLETED'].includes(schedule.status)) {
     throw new AppError('Exam is not open for mark entry.', 400, ERROR_CODES.INVALID_OPERATION);
   }
@@ -511,7 +513,7 @@ export const submitMarks = async (schoolId, examId, scheduleId, payload, actorId
       const ins = await client.query(
         `INSERT INTO operations.examsubjects (exam_id, subject_id, section_id, max_score, passing_score)
          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [examId, schedule.subject_id, schedule.section_id, maxScore, schedule.pass_score]
+        [examId, schedule.subject_id, schedule.section_id, maxScore, passScore]
       );
       examSubjectId = ins.rows[0].id;
     }

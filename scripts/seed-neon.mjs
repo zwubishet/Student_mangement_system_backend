@@ -34,7 +34,7 @@ const pool = new pg.Pool({
   ssl: isNeon ? { rejectUnauthorized: false } : false,
 });
 
-const PLATFORM_ROLES = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER', 'STUDENT', 'PARENT'];
+const PLATFORM_ROLES = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'FINANCE', 'TEACHER', 'STUDENT', 'PARENT'];
 
 async function ensurePlatformRoles(client) {
   for (const name of PLATFORM_ROLES) {
