@@ -124,8 +124,12 @@ export const listNotifications = async (schoolId, { status, limit = 50 }) => {
 /** Notify guardians of a student via SMS */
 export const notifyStudentGuardians = async (schoolId, studentId, message, actorId) => {
   const guardians = await query(
-    `SELECT phone, full_name FROM student.student_guardians
-     WHERE student_id = $1 AND school_id = $2 AND phone IS NOT NULL AND phone <> ''`,
+    `SELECT g.phone_primary AS phone,
+            trim(g.first_name || ' ' || g.last_name) AS full_name
+     FROM student.guardian_links gl
+     JOIN student.guardians g ON g.id = gl.guardian_id AND COALESCE(g.is_deleted, false) = false
+     WHERE gl.student_id = $1 AND g.school_id = $2
+       AND g.phone_primary IS NOT NULL AND g.phone_primary <> ''`,
     [studentId, schoolId]
   );
   const queued = [];

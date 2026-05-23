@@ -40,6 +40,12 @@ router.post('/invoices/generate-term', financeAccess, v2.postGenerateTermInvoice
 router.get('/ledger', financeAccess, v2.getLedger);
 router.post('/payments/record', financeAccess, v2.capturePaymentWithLedger);
 
+/* Per-student fee subscriptions (category-based billing) */
+router.get('/student-fees/subscriptions', financeAccess, v2.getSubscriptionMatrix);
+router.get('/student-fees/students/:studentId/subscriptions', financeAccess, v2.getStudentSubscriptions);
+router.put('/student-fees/students/:studentId/subscriptions', financeAccess, v2.putStudentSubscriptions);
+router.post('/student-fees/sync-mandatory', financeAccess, v2.postSyncMandatorySubscriptions);
+
 /* Payroll */
 router.get('/payroll/overview', financeAccess, portal.getPayrollOverview);
 router.get('/payroll/staff-roster', financeAccess, portal.getPayrollStaffRoster);
@@ -58,6 +64,10 @@ router.get('/fee-requests', financeAccess, portal.listFeeRequests);
 router.post('/fee-requests', financeAccess, portal.createFeeRequest);
 router.post('/fee-requests/:id/approve', adminOnly, portal.approveFeeRequest);
 router.post('/fee-requests/:id/reject', adminOnly, portal.rejectFeeRequest);
+
+router.post('/hr-review-requests/teachers/:teacherId', financeAccess, portal.createHrReviewRequest);
+router.get('/hr-review-requests', financeAccess, portal.listHrReviewRequests);
+router.post('/hr-review-requests/:id/resolve', adminOnly, portal.resolveHrReviewRequest);
 
 /* Finance team (school admin creates officers) */
 router.get('/team', adminOnly, portal.listFinanceTeam);

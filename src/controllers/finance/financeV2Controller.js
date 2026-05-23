@@ -3,6 +3,7 @@ import catchAsync from '../../utils/catchAsync.js';
 import { sendSuccess } from '../../utils/errors.js';
 import AppError from '../../utils/appError.js';
 import * as financeService from '../../services/finance/financeService.js';
+import * as studentFeeService from '../../services/finance/studentFeeService.js';
 import { getClient } from '../../config/db.js';
 import { auditLog } from '../../utils/audit.js';
 
@@ -20,7 +21,10 @@ export const getDashboard = catchAsync(async (req, res) => {
 });
 
 export const getCategories = catchAsync(async (req, res) => {
-  const data = await financeService.listFeeCategories(req.tenant.schoolId);
+  const enriched = req.query.enriched === '1' || req.query.enriched === 'true';
+  const data = enriched
+    ? await studentFeeService.listCategoriesEnriched(req.tenant.schoolId)
+    : await financeService.listFeeCategories(req.tenant.schoolId);
   sendSuccess(res, data);
 });
 
@@ -29,9 +33,63 @@ export const postCategory = catchAsync(async (req, res) => {
     name: Joi.string().trim().min(2).max(100).required(),
     code: Joi.string().trim().max(40).allow('', null),
     is_mandatory: Joi.boolean(),
+    category_type: Joi.string().valid('mandatory', 'optional'),
     frequency: Joi.string().valid('annual', 'term', 'monthly', 'one_time'),
+    description: Joi.string().max(500).allow('', null),
+    default_amount: Joi.number().min(0).allow(null),
   }), req.body);
   const data = await financeService.createFeeCategory(req.tenant.schoolId, input);
+  sendSuccess(res, data, 201);
+});
+
+export const getSubscriptionMatrix = catchAsync(async (req, res) => {
+  const data = await studentFeeService.listSubscriptionMatrix(req.tenant.schoolId, {
+    academicYear: req.query.academic_year,
+    gradeId: req.query.grade_id,
+    sectionId: req.query.section_id,
+    search: req.query.search,
+  });
+  sendSuccess(res, data);
+});
+
+export const getStudentSubscriptions = catchAsync(async (req, res) => {
+  const data = await studentFeeService.listStudentAssignments(
+    req.tenant.schoolId,
+    req.params.studentId,
+    req.query.academic_year
+  );
+  sendSuccess(res, data);
+});
+
+export const putStudentSubscriptions = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    academic_year: Joi.string().trim().max(9).required(),
+    categories: Joi.array().items(Joi.object({
+      fee_category_id: Joi.string().uuid().required(),
+      custom_amount: Joi.number().min(0).allow(null),
+      frequency: Joi.string().valid('annual', 'term', 'monthly', 'one_time').allow(null),
+      notes: Joi.string().max(300).allow('', null),
+    })).required(),
+  }), req.body);
+  const data = await studentFeeService.setStudentSubscriptions(
+    req.tenant.schoolId,
+    req.params.studentId,
+    input.academic_year,
+    input.categories,
+    req.tenant.userId
+  );
+  sendSuccess(res, data);
+});
+
+export const postSyncMandatorySubscriptions = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    academic_year: Joi.string().trim().max(9).required(),
+  }), req.body);
+  const data = await studentFeeService.syncMandatorySubscriptions(
+    req.tenant.schoolId,
+    input.academic_year,
+    req.tenant.userId
+  );
   sendSuccess(res, data, 201);
 });
 

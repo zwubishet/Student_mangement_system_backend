@@ -3,7 +3,7 @@ import { AppError } from '../../utils/errors.js';
 import { generateTermInvoices } from './financeService.js';
 
 export const listPendingApprovals = async (schoolId) => {
-  const [payroll, fees] = await Promise.all([
+  const [payroll, fees, hrReviews] = await Promise.all([
     query(
       `SELECT pr.*, u.first_name AS created_by_first, u.last_name AS created_by_last
        FROM finance.payroll_runs pr
@@ -23,8 +23,19 @@ export const listPendingApprovals = async (schoolId) => {
        ORDER BY fgr.submitted_at DESC`,
       [schoolId]
     ),
+    query(
+      `SELECT r.*, u.first_name AS requester_first, u.last_name AS requester_last,
+              t_u.first_name AS teacher_first, t_u.last_name AS teacher_last
+       FROM finance.staff_hr_review_requests r
+       JOIN identity.users u ON u.id = r.requested_by
+       JOIN academic.teachers t ON t.id = r.teacher_id
+       JOIN identity.users t_u ON t_u.id = t.user_id
+       WHERE r.school_id = $1 AND r.status = 'pending'
+       ORDER BY r.created_at DESC`,
+      [schoolId]
+    ).catch(() => ({ rows: [] })),
   ]);
-  return { payroll: payroll.rows, fee_requests: fees.rows };
+  return { payroll: payroll.rows, fee_requests: fees.rows, hr_reviews: hrReviews.rows };
 };
 
 export const listFeeGenerationRequests = async (schoolId, { status, limit = 50 } = {}) => {

@@ -20,6 +20,7 @@ import teacherPortalRouter from './teacherPortalRoutes.js';
 import parentRouter from './parentRoutes.js';
 import parentPortalRouter from './parentPortalRoutes.js';
 import notificationRouter from './notificationRoutes.js';
+import lessonPlanRouter from './lessonPlanRoutes.js';
 
 const mainRouter = express.Router();
 
@@ -44,5 +45,6 @@ mainRouter.use('/files', fileRouter);
 mainRouter.use('/parents', parentRouter);
 mainRouter.use('/parent-portal', parentPortalRouter);
 mainRouter.use('/notifications', notificationRouter);
+mainRouter.use('/lesson-plans', lessonPlanRouter);
 
 export default mainRouter;

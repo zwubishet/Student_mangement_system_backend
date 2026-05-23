@@ -1,6 +1,7 @@
 import { getClient, query } from '../../config/db.js';
 import { AppError } from '../../utils/errors.js';
 import { auditLog } from '../../utils/audit.js';
+import { resolveBillableLinesForStudent } from './studentFeeService.js';
 
 const DEFAULT_COMMISSION_RATE = Number(process.env.PLATFORM_COMMISSION_RATE || 0.015);
 
@@ -57,11 +58,22 @@ export const listFeeCategories = async (schoolId) => {
 };
 
 export const createFeeCategory = async (schoolId, data) => {
+  const categoryType = data.category_type || (data.is_mandatory ? 'mandatory' : 'optional');
   const res = await query(
-    `INSERT INTO finance.fee_categories (school_id, name, code, is_mandatory, frequency)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO finance.fee_categories (
+       school_id, name, code, is_mandatory, frequency, category_type, description, default_amount
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [schoolId, data.name, data.code || null, data.is_mandatory ?? true, data.frequency || 'term']
+    [
+      schoolId,
+      data.name,
+      data.code || null,
+      data.is_mandatory ?? categoryType === 'mandatory',
+      data.frequency || 'term',
+      categoryType,
+      data.description || null,
+      data.default_amount ?? null,
+    ]
   );
   return res.rows[0];
 };
@@ -156,23 +168,18 @@ export const createPaymentPlan = async (schoolId, data) => {
   }
 };
 
-/** Generate term invoices from fee_schedules for enrolled students */
+/** Generate term invoices from per-student fee subscriptions + schedules */
 export const generateTermInvoices = async (schoolId, userId, input) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    const schedules = await client.query(
-      `SELECT fs.*, fc.name AS category_name
-       FROM finance.fee_schedules fs
-       JOIN finance.fee_categories fc ON fc.id = fs.fee_category_id
-       WHERE fs.school_id = $1 AND fs.academic_year = $2
-         AND ($3::smallint IS NULL OR fs.term IS NULL OR fs.term = $3)
-         AND ($4::uuid IS NULL OR fs.grade_id IS NULL OR fs.grade_id = $4)`,
-      [schoolId, input.academic_year, input.term ?? null, input.grade_id || null]
+    const hasSetup = await client.query(
+      `SELECT 1 FROM finance.fee_categories WHERE school_id = $1 AND is_active = true LIMIT 1`,
+      [schoolId]
     );
-    if (schedules.rows.length === 0) {
-      throw new AppError('No fee schedules found for this year/term.', 400);
+    if (!hasSetup.rows[0]) {
+      throw new AppError('Define fee categories before generating invoices.', 400);
     }
 
     const roster = await client.query(
@@ -187,15 +194,26 @@ export const generateTermInvoices = async (schoolId, userId, input) => {
     );
 
     let generated = 0;
+    let skippedNoLines = 0;
     const dueDate = input.due_date || new Date().toISOString().slice(0, 10);
 
     for (const student of roster.rows) {
+      const billLines = await resolveBillableLinesForStudent(client, schoolId, student, input);
+      if (!billLines.length) {
+        skippedNoLines += 1;
+        continue;
+      }
+
       let subtotal = 0;
       const lineItems = [];
-      for (const sch of schedules.rows) {
-        if (sch.grade_id && sch.grade_id !== student.grade_id) continue;
-        subtotal += Number(sch.amount);
-        lineItems.push({ name: sch.category_name, amount: sch.amount, schedule_id: sch.id });
+      for (const li of billLines) {
+        subtotal += Number(li.amount);
+        lineItems.push({
+          name: li.category_name,
+          amount: li.amount,
+          fee_category_id: li.fee_category_id,
+          fee_schedule_id: li.fee_schedule_id,
+        });
       }
       if (subtotal <= 0) continue;
 
@@ -258,9 +276,10 @@ export const generateTermInvoices = async (schoolId, userId, input) => {
       await client.query(`DELETE FROM finance.invoiceitems WHERE invoice_id = $1`, [invoiceId]);
       for (const li of lineItems) {
         await client.query(
-          `INSERT INTO finance.invoiceitems (school_id, invoice_id, name, amount)
-           VALUES ($1, $2, $3, $4)`,
-          [schoolId, invoiceId, li.name, li.amount]
+          `INSERT INTO finance.invoiceitems (
+             school_id, invoice_id, name, amount, fee_category_id, fee_schedule_id
+           ) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [schoolId, invoiceId, li.name, li.amount, li.fee_category_id || null, li.fee_schedule_id || null]
         );
       }
       generated += 1;
@@ -276,7 +295,14 @@ export const generateTermInvoices = async (schoolId, userId, input) => {
     });
 
     await client.query('COMMIT');
-    return { generated, students: roster.rowCount };
+    return {
+      generated,
+      students: roster.rows.length,
+      skipped_no_lines: skippedNoLines,
+      hint: skippedNoLines > 0
+        ? 'Some students had no billable fees. Sync mandatory subscriptions, add schedules, or assign optional categories.'
+        : null,
+    };
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;

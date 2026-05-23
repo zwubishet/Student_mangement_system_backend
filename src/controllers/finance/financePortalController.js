@@ -5,6 +5,7 @@ import AppError from '../../utils/appError.js';
 import * as payrollService from '../../services/finance/payrollService.js';
 import * as financeUserService from '../../services/finance/financeUserService.js';
 import * as approvalService from '../../services/finance/approvalService.js';
+import * as staffHrReviewService from '../../services/finance/staffHrReviewService.js';
 
 const validate = (schema, body) => {
   const { value, error } = schema.validate(body, { abortEarly: false, stripUnknown: true });
@@ -193,6 +194,40 @@ export const rejectFeeRequest = catchAsync(async (req, res) => {
 
 export const listFinanceTeam = catchAsync(async (req, res) => {
   const data = await financeUserService.listFinanceOfficers(req.tenant.schoolId);
+  sendSuccess(res, data);
+});
+
+export const createHrReviewRequest = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    message: Joi.string().max(1000).allow('', null),
+  }), req.body);
+  const data = await staffHrReviewService.createHrReviewRequest(
+    req.tenant.schoolId,
+    req.params.teacherId,
+    req.tenant.userId,
+    input
+  );
+  sendSuccess(res, data, 201);
+});
+
+export const listHrReviewRequests = catchAsync(async (req, res) => {
+  const data = await staffHrReviewService.listHrReviewRequests(req.tenant.schoolId, {
+    status: req.query.status,
+  });
+  sendSuccess(res, data);
+});
+
+export const resolveHrReviewRequest = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    status: Joi.string().valid('reviewed', 'dismissed').required(),
+    admin_note: Joi.string().max(500).allow('', null),
+  }), req.body);
+  const data = await staffHrReviewService.resolveHrReviewRequest(
+    req.tenant.schoolId,
+    req.params.id,
+    req.tenant.userId,
+    input
+  );
   sendSuccess(res, data);
 });
 

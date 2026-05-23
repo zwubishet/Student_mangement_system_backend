@@ -7,5 +7,21 @@ export const dashboard = catchAsync(async (req, res) => {
 });
 
 export const childDetail = catchAsync(async (req, res) => {
-  sendSuccess(res, await parentPortal.getParentChildDetail(req.tenant.schoolId, req.tenant.userId, req.params.studentId));
+  sendSuccess(res, await parentPortal.getParentChildDetail(
+    req.tenant.schoolId,
+    req.tenant.userId,
+    req.params.studentId
+  ));
+});
+
+export const changePassword = catchAsync(async (req, res) => {
+  sendSuccess(res, await parentPortal.changeParentPassword(
+    req.tenant.schoolId,
+    req.tenant.userId,
+    req.body
+  ));
+});
+
+export const profile = catchAsync(async (req, res) => {
+  sendSuccess(res, await parentPortal.getParentContext(req.tenant.schoolId, req.tenant.userId));
 });
