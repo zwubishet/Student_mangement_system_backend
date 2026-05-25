@@ -7,7 +7,13 @@ import * as markReview from '../../services/grading/markReviewService.js';
 import * as computation from '../../services/grading/computationService.js';
 import * as markBulk from '../../services/grading/markBulkService.js';
 import * as resultsService from '../../services/grading/resultsService.js';
+import { guardTeacherExamRoute } from '../../services/grading/examAccessService.js';
+import { buildStudentReportCardPdf } from '../../services/reportCardPdfService.js';
 import { sendPaginated } from '../../utils/errors.js';
+
+const staffGuard = async (req, examId, scheduleId = null) => {
+  await guardTeacherExamRoute(req.tenant.schoolId, req.tenant.role, req.tenant.userId, examId, scheduleId);
+};
 
 export const getActiveScale = catchAsync(async (req, res) => {
   sendSuccess(res, await gradingScale.getActiveScaleWithBands(req.tenant.schoolId));
@@ -64,6 +70,7 @@ export const checkConflicts = catchAsync(async (req, res) => {
 });
 
 export const markEntryProgress = catchAsync(async (req, res) => {
+  await staffGuard(req, req.params.examId, req.params.scheduleId);
   sendSuccess(
     res,
     await markReview.getMarkEntryProgress(
@@ -83,6 +90,7 @@ export const markReviewReadiness = catchAsync(async (req, res) => {
 });
 
 export const submitMarksGroup = catchAsync(async (req, res) => {
+  await staffGuard(req, req.params.examId, req.params.scheduleId);
   sendSuccess(
     res,
     await markReview.submitMarksForSchedule(
@@ -132,6 +140,7 @@ export const processComputationQueue = catchAsync(async (req, res) => {
 });
 
 export const bulkMarksPreview = catchAsync(async (req, res) => {
+  await staffGuard(req, req.params.examId, req.params.scheduleId);
   const { csv } = req.body;
   sendSuccess(
     res,
@@ -145,6 +154,7 @@ export const bulkMarksPreview = catchAsync(async (req, res) => {
 });
 
 export const bulkMarksCommit = catchAsync(async (req, res) => {
+  await staffGuard(req, req.params.examId, req.params.scheduleId);
   sendSuccess(
     res,
     await markBulk.commitBulkMarks(
@@ -164,5 +174,25 @@ export const listComputedResults = catchAsync(async (req, res) => {
     { ...req.query, exam_id: req.params.examId }
   );
   sendPaginated(res, rows, total, page, limit);
+});
+
+export const computeTermResults = catchAsync(async (req, res) => {
+  const run = await computation.enqueueTermComputation(
+    req.tenant.schoolId,
+    req.params.termId,
+    req.tenant.userId
+  );
+  const processed = await computation.processPendingRuns(1);
+  sendSuccess(res, { run_id: run.id, queue: processed });
+});
+
+export const downloadReportCard = catchAsync(async (req, res) => {
+  const studentId = req.params.studentId;
+  const buf = await buildStudentReportCardPdf(req.tenant.schoolId, studentId, {
+    term_id: req.query.term_id || undefined,
+  });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=report-card-${studentId}.pdf`);
+  res.send(buf);
 });
 

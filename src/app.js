@@ -32,7 +32,23 @@ app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
 app.use('/api/v1', restrictBlacklisted, mainRouter);
 
-app.get('/health', (req, res) => res.status(200).json({ status: 'active', timestamp: new Date().toISOString() }));
+/** Deploy sanity check — hit /api/v1/meta to confirm lesson-plans & resources are live */
+app.get('/api/v1/meta', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'sms-api',
+    version: process.env.npm_package_version || '1.0.0',
+    modules: [
+      'auth', 'catalog', 'students', 'teachers', 'lesson-plans', 'resources', 'library', 'finance', 'chapa-payments', 'grading',
+    ],
+  });
+});
+
+app.get('/health', (req, res) => res.status(200).json({
+  status: 'active',
+  timestamp: new Date().toISOString(),
+  modules: ['lesson-plans', 'resources', 'library'],
+}));
 
 app.all('*', (req, res, next) => next(new AppError(`Route ${req.originalUrl} not found`, 404)));
 

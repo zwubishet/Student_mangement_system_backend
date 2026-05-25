@@ -74,6 +74,8 @@ router.post(
 // Phase 6–7: computation + computed results
 router.get('/computation-runs/:runId', admin, ctrl.getComputationRun);
 router.post('/computation-runs/process', admin, ctrl.processComputationQueue);
+router.post('/terms/:termId/compute', admin, ctrl.computeTermResults);
 router.get('/results/exam/:examId', validateQuery(paginationSchema), ctrl.listComputedResults);
+router.get('/report-card/student/:studentId', staff, ctrl.downloadReportCard);
 
 export default router;

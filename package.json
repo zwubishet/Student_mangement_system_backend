@@ -27,6 +27,7 @@
     "seed:neon": "node scripts/seed-neon.mjs",
     "seed:super": "node scripts/seed-super-admin.mjs",
     "seed:demo": "node scripts/seed-demo-academy.mjs",
+    "seed:grading": "node scripts/seed-grading-demo.mjs",
     "worker:compute": "node scripts/computation-worker.mjs"
   },
   "devDependencies": {

@@ -2,6 +2,8 @@ import { query } from '../config/db.js';
 import { AppError, ERROR_CODES } from '../utils/errors.js';
 import { hashPassword, comparePasswords } from '../utils/auth.js';
 import { ATTENDANCE_TABLE } from '../utils/attendanceTable.js';
+import { getStudentGradeReport, getStudentRecentExams } from './grading/gradingReadService.js';
+import { buildStudentReportCardPdf } from './reportCardPdfService.js';
 
 export const getParentContext = async (schoolId, userId) => {
   const parent = await query(
@@ -50,9 +52,14 @@ export const getParentChildDetail = async (schoolId, userId, studentId) => {
 
   const [student, attendance, exams, invoices] = await Promise.all([
     query(
-      `SELECT s.id, s.first_name, s.last_name, s.admission_number, u.email
+      `SELECT s.id, s.first_name, s.last_name, s.admission_number, u.email,
+              g.name AS grade_name, sec.name AS section_name
        FROM student.students s
        JOIN identity.users u ON u.id = s.user_id
+       LEFT JOIN student.studentenrollments se ON se.student_id = s.id AND se.status = 'active'
+       LEFT JOIN academic.sections sec ON sec.id = se.section_id
+       LEFT JOIN academic.classes c ON c.section_id = sec.id AND c.academic_year_id = se.academic_year_id
+       LEFT JOIN academic.grades g ON g.id = c.grade_id
        WHERE s.id = $1`,
       [studentId]
     ),
@@ -62,19 +69,28 @@ export const getParentChildDetail = async (schoolId, userId, studentId) => {
        GROUP BY status`,
       [studentId, schoolId]
     ),
+    getStudentRecentExams(schoolId, studentId, 8).catch(() => []),
     query(
-      `SELECT e.name AS exam_name, er.score, er.created_at::date AS recorded_at
-       FROM operations.examresults er
-       JOIN operations.exams e ON e.id = er.exam_id
-       WHERE er.student_id = $1 ORDER BY er.created_at DESC LIMIT 10`,
-      [studentId]
-    ).catch(() => ({ rows: [] })),
-    query(
-      `SELECT id, academic_year, term, amount, total_paid, status, due_date,
-              GREATEST(amount - COALESCE(total_paid, 0), 0)::numeric(12,2) AS balance
-       FROM finance.invoices
-       WHERE student_id = $1 AND school_id = $2
-       ORDER BY created_at DESC LIMIT 8`,
+      `SELECT i.id, i.academic_year, i.term, i.amount, i.subtotal, i.discount_amount,
+              i.total_paid, i.status, i.due_date,
+              GREATEST(i.amount - COALESCE(i.total_paid, pt.paid, 0), 0)::numeric(12,2) AS balance,
+              COALESCE(
+                json_agg(
+                  json_build_object('name', ii.name, 'amount', ii.amount)
+                  ORDER BY ii.name
+                ) FILTER (WHERE ii.id IS NOT NULL),
+                '[]'::json
+              ) AS line_items
+       FROM finance.invoices i
+       LEFT JOIN finance.invoiceitems ii ON ii.invoice_id = i.id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(amount), 0)::numeric(12,2) AS paid
+         FROM finance.payments p
+         WHERE p.invoice_id = i.id AND p.school_id = i.school_id AND p.status = 'succeeded'
+       ) pt ON true
+       WHERE i.student_id = $1 AND i.school_id = $2
+       GROUP BY i.id, pt.paid
+       ORDER BY i.created_at DESC LIMIT 12`,
       [studentId, schoolId]
     ).catch(() => ({ rows: [] })),
   ]);
@@ -86,9 +102,29 @@ export const getParentChildDetail = async (schoolId, userId, studentId) => {
   return {
     student: student.rows[0],
     attendance_summary: { total, present, rate: total ? Math.round((present / total) * 100) : null },
-    recent_exams: exams.rows,
+    recent_exams: exams,
     invoices: invoices.rows,
   };
+};
+
+export const getParentChildGrades = async (schoolId, userId, studentId, filters = {}) => {
+  const parent = await getParentContext(schoolId, userId);
+  const access = await query(
+    `SELECT 1 FROM academic.parentstudents WHERE parent_id = $1 AND student_id = $2 AND school_id = $3`,
+    [parent.id, studentId, schoolId]
+  );
+  if (!access.rows[0]) throw new AppError('Access denied.', 403, ERROR_CODES.INVALID_OPERATION);
+  return getStudentGradeReport(schoolId, studentId, filters);
+};
+
+export const getParentChildReportCardPdf = async (schoolId, userId, studentId, filters = {}) => {
+  const parent = await getParentContext(schoolId, userId);
+  const access = await query(
+    `SELECT 1 FROM academic.parentstudents WHERE parent_id = $1 AND student_id = $2 AND school_id = $3`,
+    [parent.id, studentId, schoolId]
+  );
+  if (!access.rows[0]) throw new AppError('Access denied.', 403, ERROR_CODES.INVALID_OPERATION);
+  return buildStudentReportCardPdf(schoolId, studentId, filters);
 };
 
 export const changeParentPassword = async (schoolId, userId, { current_password, new_password }) => {

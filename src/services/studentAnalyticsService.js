@@ -22,12 +22,12 @@ export const getStudentAnalytics = async (schoolId, studentId) => {
       [studentId, schoolId]
     ),
     query(
-      `SELECT e.name AS exam_name, er.score, er.created_at::date AS recorded_at, sub.name AS subject_name
+      `SELECT e.name AS exam_name, er.score, COALESCE(er.entered_at, er.updated_at)::date AS recorded_at, sub.name AS subject_name
        FROM operations.examresults er
        JOIN operations.exams e ON e.id = er.exam_id
        LEFT JOIN academic.subjects sub ON sub.id = e.subject_id
        WHERE er.student_id = $1
-       ORDER BY er.created_at DESC LIMIT 24`,
+       ORDER BY COALESCE(er.entered_at, er.updated_at) DESC LIMIT 24`,
       [studentId]
     ).catch(() => ({ rows: [] })),
     query(

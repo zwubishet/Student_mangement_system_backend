@@ -13,6 +13,7 @@ import { requireRole, requireTenant } from '../middlewares/authMiddleware.js';
 const router = express.Router();
 
 router.post('/webhooks/chapa', v2.postChapaWebhook);
+router.get('/webhooks/chapa', v2.getChapaCallback);
 
 router.use(requireTenant);
 
@@ -45,6 +46,11 @@ router.get('/student-fees/subscriptions', financeAccess, v2.getSubscriptionMatri
 router.get('/student-fees/students/:studentId/subscriptions', financeAccess, v2.getStudentSubscriptions);
 router.put('/student-fees/students/:studentId/subscriptions', financeAccess, v2.putStudentSubscriptions);
 router.post('/student-fees/sync-mandatory', financeAccess, v2.postSyncMandatorySubscriptions);
+router.get('/student-fees/billing-setup', financeAccess, v2.getBillingSetup);
+router.get('/student-fees/preview-term', financeAccess, v2.getPreviewTermInvoices);
+router.post('/student-fees/bootstrap', financeAccess, v2.postBootstrapBilling);
+router.post('/student-fees/repair-term-billing', financeAccess, v2.postRepairTermBilling);
+router.get('/student-fees/billing-roster', financeAccess, v2.getStudentBillingRoster);
 
 /* Payroll */
 router.get('/payroll/overview', financeAccess, portal.getPayrollOverview);

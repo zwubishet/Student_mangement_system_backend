@@ -1,5 +1,5 @@
 import { getClient, query } from '../../config/db.js';
-import { AppError } from '../../utils/errors.js';
+import { AppError, ERROR_CODES } from '../../utils/errors.js';
 import { auditLog } from '../../utils/audit.js';
 import { resolveBillableLinesForStudent } from './studentFeeService.js';
 
@@ -446,7 +446,7 @@ export const listLedger = async (schoolId, { studentId, limit = 50, offset = 0 }
   return res.rows;
 };
 
-export const processChapaWebhook = async ({ txRef, amount, status, invoiceId, metadata }) => {
+export const settleChapaPayment = async ({ txRef, amount, status, invoiceId, metadata }) => {
   if (status !== 'success' && status !== 'successful') return { skipped: true, reason: 'not_success' };
 
   const client = await getClient();
@@ -458,19 +458,40 @@ export const processChapaWebhook = async ({ txRef, amount, status, invoiceId, me
       [txRef]
     );
     if (existing.rows[0]) {
+      await client.query(
+        `UPDATE finance.chapa_payment_sessions
+         SET status = 'success', completed_at = COALESCE(completed_at, now()), updated_at = now()
+         WHERE tx_ref = $1 AND status = 'pending'`,
+        [txRef]
+      );
       await client.query('COMMIT');
       return { idempotent: true };
     }
 
-    const invId = invoiceId || metadata?.invoice_id;
+    let invId = invoiceId || metadata?.invoice_id;
+    if (!invId && txRef) {
+      const sess = await client.query(
+        `SELECT invoice_id FROM finance.chapa_payment_sessions WHERE tx_ref = $1`,
+        [txRef]
+      );
+      invId = sess.rows[0]?.invoice_id;
+    }
+    if (!invId) throw new AppError('Invoice not found for payment', 404);
+
     const invoice = await client.query(
-      `SELECT id, school_id, student_id, amount FROM finance.invoices WHERE id = $1 FOR UPDATE`,
+      `SELECT id, school_id, student_id, amount, COALESCE(total_paid, 0)::numeric(12,2) AS total_paid
+       FROM finance.invoices WHERE id = $1 FOR UPDATE`,
       [invId]
     );
     if (!invoice.rows[0]) throw new AppError('Invoice not found', 404);
 
-    const { school_id: schoolId, student_id: studentId, id: invPk } = invoice.rows[0];
-    const payAmount = Number(amount);
+    const { school_id: schoolId, student_id: studentId, id: invPk, amount: dueAmount, total_paid: totalPaid } = invoice.rows[0];
+    const balance = Math.max(Number(dueAmount) - Number(totalPaid), 0);
+    let payAmount = Number(amount);
+    if (!payAmount || payAmount <= 0) payAmount = balance;
+    if (balance > 0 && payAmount > balance + 0.01) {
+      throw new AppError('Payment amount exceeds invoice balance', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
 
     const payment = await client.query(
       `INSERT INTO finance.payments (school_id, invoice_id, amount, payment_method, status, idempotency_key)
@@ -511,6 +532,13 @@ export const processChapaWebhook = async ({ txRef, amount, status, invoiceId, me
       });
     }
 
+    await client.query(
+      `UPDATE finance.chapa_payment_sessions
+       SET status = 'success', chapa_status = $2, completed_at = now(), updated_at = now()
+       WHERE tx_ref = $1`,
+      [txRef, status || 'success']
+    );
+
     await client.query('COMMIT');
     return { ok: true, invoiceStatus: ledger.invoiceStatus };
   } catch (e) {
@@ -520,6 +548,9 @@ export const processChapaWebhook = async ({ txRef, amount, status, invoiceId, me
     client.release();
   }
 };
+
+/** @deprecated alias — use settleChapaPayment */
+export const processChapaWebhook = settleChapaPayment;
 
 export const listPlatformTransactions = async ({ schoolId, type, limit = 100, offset = 0 } = {}) => {
   const params = [];

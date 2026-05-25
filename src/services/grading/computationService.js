@@ -2,6 +2,28 @@ import { query, getClient } from '../../config/db.js';
 import { AppError, ERROR_CODES } from '../../utils/errors.js';
 import * as engine from './gradeEngine.js';
 import * as gradingScale from './gradingScaleService.js';
+import {
+  loadTermWeightMaps,
+  aggregateTermScores,
+  fetchLockedTermExamScores,
+} from './termWeightResolver.js';
+
+export const enqueueTermComputation = async (schoolId, termId, actorId, existingClient = null) => {
+  const runClient = existingClient || await getClient();
+  const owns = !existingClient;
+
+  try {
+    const res = await runClient.query(
+      `INSERT INTO operations.computation_runs (school_id, term_id, run_type, status, created_by)
+       VALUES ($1, $2, 'term', 'pending', $3)
+       RETURNING id`,
+      [schoolId, termId, actorId]
+    );
+    return res.rows[0];
+  } finally {
+    if (owns) runClient.release();
+  }
+};
 
 export const enqueueExamComputation = async (schoolId, examId, actorId, existingClient = null) => {
   const runClient = existingClient || await getClient();
@@ -176,38 +198,16 @@ export const runTermComputation = async (schoolId, termId, runId) => {
 
     await client.query(
       `DELETE FROM operations.computed_results
-       WHERE school_id = $1 AND term_id = $2 AND result_scope = 'subject_term'`,
+       WHERE school_id = $1 AND term_id = $2 AND result_scope IN ('subject_term', 'term_total')`,
       [schoolId, termId]
     );
 
     const { profile, bands } = await gradingScale.getActiveScaleWithBands(schoolId);
+    const weightMaps = await loadTermWeightMaps(schoolId, termId);
+    const examRows = await fetchLockedTermExamScores(schoolId, termId);
+    const agg = aggregateTermScores(examRows, weightMaps);
 
-    const agg = await client.query(
-      `WITH exam_scores AS (
-         SELECT er.student_id, er.subject_id, er.class_id, t.academic_year_id,
-                e.id AS exam_id, e.weightage,
-                CASE WHEN er.is_absent THEN 0
-                     ELSE (er.score::float / NULLIF(COALESCE(esch.max_score, es.max_score, e.max_score), 0)::float) * 100
-                END AS pct
-         FROM operations.examresults er
-         JOIN operations.exams e ON e.id = er.exam_id
-         JOIN academic.terms t ON t.id = e.term_id
-         LEFT JOIN operations.examsubjects es ON es.id = er.exam_subject_id
-         LEFT JOIN operations.exam_schedules esch ON esch.id = er.schedule_id
-         WHERE e.term_id = $1 AND e.school_id = $2 AND e.is_deleted = false
-           AND er.mark_status = 'locked'
-       ),
-       weighted AS (
-         SELECT student_id, subject_id, class_id, academic_year_id,
-                SUM(pct * COALESCE(weightage, 0) / 100.0) AS weighted_score
-         FROM exam_scores
-         GROUP BY student_id, subject_id, class_id, academic_year_id
-       )
-       SELECT * FROM weighted`,
-      [termId, schoolId]
-    );
-
-    for (const row of agg.rows) {
+    for (const row of agg) {
       const g = engine.scoreToGrade(row.weighted_score, 100, bands, { boundaryRule: profile?.boundary_rule });
       await client.query(
         `INSERT INTO operations.computed_results (
@@ -221,14 +221,46 @@ export const runTermComputation = async (schoolId, termId, runId) => {
       );
     }
 
+    // Class ranks per subject
+    const bySubject = {};
+    for (const row of agg) {
+      const sid = row.subject_id || 'overall';
+      if (!bySubject[sid]) bySubject[sid] = [];
+      bySubject[sid].push({
+        student_id: row.student_id,
+        class_id: row.class_id,
+        subject_id: row.subject_id,
+        percentage: row.weighted_score,
+      });
+    }
+
+    for (const rows of Object.values(bySubject)) {
+      const ranked = engine.computeClassRank(rows, 'percentage');
+      for (const r of ranked) {
+        await client.query(
+          `UPDATE operations.computed_results SET rank_in_class = $1
+           WHERE computation_run_id = $2 AND student_id = $3 AND term_id = $4
+             AND subject_id IS NOT DISTINCT FROM $5 AND result_scope = 'subject_term'`,
+          [r.rank, runId, r.student_id, termId, r.subject_id]
+        );
+      }
+    }
+
     await client.query(
-      `UPDATE operations.computation_runs SET status = 'done', completed_at = NOW() WHERE id = $1`,
-      [runId]
+      `UPDATE operations.computation_runs
+       SET status = 'done', completed_at = NOW(),
+           stats = jsonb_build_object('rows', $2::int, 'weights_configured', $3::boolean)
+       WHERE id = $1`,
+      [runId, agg.length, weightMaps.configured]
     );
     await client.query('COMMIT');
-    return { processed: agg.rows.length };
+    return { processed: agg.length, weights_configured: weightMaps.configured };
   } catch (err) {
     await client.query('ROLLBACK');
+    await query(
+      `UPDATE operations.computation_runs SET status = 'failed', error_message = $2, completed_at = NOW() WHERE id = $1`,
+      [runId, err.message]
+    );
     throw err;
   } finally {
     client.release();

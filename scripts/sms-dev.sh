@@ -10,6 +10,7 @@
 #   ./scripts/sms-dev.sh status          # migration status
 #   ./scripts/sms-dev.sh reset           # down -v, up, migrate, seed demo data
 #   ./scripts/sms-dev.sh seed            # seed demo school + admin (local DB)
+#   ./scripts/sms-dev.sh chapa-setup     # Chapa payment table + local checklist
 #   ./scripts/sms-dev.sh logs [service]  # logs (app|hasura|postgres|all)
 #   ./scripts/sms-dev.sh ps              # container status
 #   ./scripts/sms-dev.sh restart [svc]   # restart app or all
@@ -275,9 +276,27 @@ cmd_seed() {
   seed_node seed-neon.mjs
   seed_node seed-super-admin.mjs
   seed_node seed-demo-academy.mjs
+  seed_node seed-fee-billing.mjs || warn "Fee billing seed skipped"
   info "School admin: admin@demoschool.edu / DemoAdmin123!"
   info "Super admin: superadmin@edumanage.io / SuperAdmin123!"
   info "Teachers: teacher01@demo.local … / Teacher123!  |  Students: DEMO-G9A-001@demo.local / Student123!"
+}
+
+cmd_chapa_setup() {
+  bash "$ROOT/scripts/setup-chapa-local.sh"
+}
+
+cmd_seed_fees() {
+  require_docker
+  wait_healthy postgres 60
+  bold "Bootstrap fee categories, schedules, subscriptions"
+  local db_url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}"
+  if (echo >/dev/tcp/127.0.0.1/5432) 2>/dev/null; then
+    DATABASE_URL="$db_url" node "$ROOT/scripts/seed-fee-billing.mjs"
+  else
+    "${COMPOSE[@]}" exec -T -e DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
+      app node scripts/seed-fee-billing.mjs
+  fi
 }
 
 cmd_reset() {
@@ -314,6 +333,8 @@ main() {
     migrate-psql|migrate:psql) cmd_migrate_psql ;;
     status|migrate-status) cmd_migrate_status ;;
     seed) cmd_seed ;;
+    seed-fees) cmd_seed_fees ;;
+    chapa-setup|chapa) cmd_chapa_setup ;;
     reset) cmd_reset ;;
     ps) cmd_ps ;;
     logs) cmd_logs "${1:-all}" ;;

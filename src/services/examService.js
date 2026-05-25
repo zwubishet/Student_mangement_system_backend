@@ -6,6 +6,12 @@ import * as grading from './examGradingService.js';
 import * as examTypes from './grading/examTypeService.js';
 import * as scheduleConflicts from './grading/scheduleConflictService.js';
 import * as gradingScale from './grading/gradingScaleService.js';
+import {
+  assertTeacherExamAccess,
+  assertTeacherScheduleAccess,
+  filterSchedulesForTeacher,
+  teacherExamExistsClause,
+} from './grading/examAccessService.js';
 
 const EXAM_STATUSES = ['DRAFT', 'ACTIVE', 'COMPLETED', 'PUBLISHED'];
 const EXAM_TYPES = ['midterm', 'final', 'quiz', 'assignment', 'practical', 'continuous_assessment'];
@@ -22,24 +28,40 @@ export const getExamOverview = async (schoolId) => {
     `SELECT
        (SELECT COUNT(*)::int FROM operations.exams WHERE school_id = $1 AND is_deleted = false) AS exams,
        (SELECT COUNT(*)::int FROM operations.exams WHERE school_id = $1 AND status = 'ACTIVE' AND is_deleted = false) AS active_exams,
+       (SELECT COUNT(*)::int FROM operations.exams WHERE school_id = $1 AND status = 'COMPLETED' AND is_deleted = false) AS awaiting_publish,
+       (SELECT COUNT(*)::int FROM operations.exams WHERE school_id = $1 AND status = 'PUBLISHED' AND is_deleted = false) AS published_exams,
        (SELECT COUNT(*)::int FROM operations.exam_schedules WHERE school_id = $1) AS schedules,
        (SELECT COUNT(*)::int FROM operations.examresults er
-        JOIN operations.exams e ON e.id = er.exam_id WHERE e.school_id = $1) AS grade_entries,
+        JOIN operations.exams e ON e.id = er.exam_id
+        WHERE e.school_id = $1 AND COALESCE(er.is_deleted, false) = false) AS grade_entries,
        (SELECT COUNT(*)::int FROM operations.examresults er
         JOIN operations.exams e ON e.id = er.exam_id
-        WHERE e.school_id = $1 AND er.verified_at IS NOT NULL) AS verified_entries`,
+        WHERE e.school_id = $1 AND er.mark_status = 'submitted' AND COALESCE(er.is_deleted, false) = false) AS pending_verify,
+       (SELECT COUNT(*)::int FROM operations.examresults er
+        JOIN operations.exams e ON e.id = er.exam_id
+        WHERE e.school_id = $1 AND er.mark_status = 'draft' AND COALESCE(er.is_deleted, false) = false) AS draft_marks,
+       (SELECT COUNT(*)::int FROM operations.examresults er
+        JOIN operations.exams e ON e.id = er.exam_id
+        WHERE e.school_id = $1 AND er.mark_status = 'locked' AND COALESCE(er.is_deleted, false) = false) AS locked_marks,
+       (SELECT COUNT(*)::int FROM operations.computed_results WHERE school_id = $1) AS computed_results`,
     [schoolId]
   );
   return result.rows[0];
 };
 
-export const listExams = async (schoolId, queryParams) => {
+export const listExams = async (schoolId, queryParams, { teacherUserId } = {}) => {
   const { page, limit, offset } = getPaginationParams(queryParams);
   const { term_id, status, exam_type, include_deleted, class_id } = queryParams;
 
   const conditions = ['e.school_id = $1'];
   const params = [schoolId];
   let idx = 2;
+
+  if (teacherUserId) {
+    conditions.push(teacherExamExistsClause(idx));
+    params.push(teacherUserId);
+    idx += 1;
+  }
 
   if (include_deleted !== 'true') {
     conditions.push('e.is_deleted = false');
@@ -91,7 +113,7 @@ export const listExams = async (schoolId, queryParams) => {
   return { rows: rows.rows, total: parseInt(countResult.rows[0].count, 10), page, limit };
 };
 
-export const getExamById = async (schoolId, examId) => {
+export const getExamById = async (schoolId, examId, { teacherUserId } = {}) => {
   const result = await query(
     `SELECT ${examBaseSelect},
             t.name AS term_name, t.academic_year_id,
@@ -103,9 +125,10 @@ export const getExamById = async (schoolId, examId) => {
     [schoolId, examId]
   );
   if (!result.rows[0]) throw new AppError('Exam not found', 404, ERROR_CODES.NOT_FOUND);
+  if (teacherUserId) await assertTeacherExamAccess(schoolId, teacherUserId, examId);
 
-  const [schedules, legacySubjects, stats] = await Promise.all([
-    listExamSchedules(schoolId, examId),
+  let schedules = await listExamSchedules(schoolId, examId, { teacherUserId });
+  const [legacySubjects, stats] = await Promise.all([
     query(
       `SELECT es.id, es.subject_id, es.section_id, es.max_score, es.passing_score,
               sub.name AS subject_name, sec.name AS section_name
@@ -237,7 +260,7 @@ export const deleteExam = async (schoolId, examId, actorId) => {
 
 // ─── Schedules ───────────────────────────────────────────────────────────────
 
-export const listExamSchedules = async (schoolId, examId) => {
+export const listExamSchedules = async (schoolId, examId, { teacherUserId } = {}) => {
   const result = await query(
     `SELECT esch.id, esch.exam_id, esch.class_id, esch.subject_id,
             esch.max_score, esch.pass_score, esch.room, esch.start_time, esch.end_time,
@@ -264,6 +287,9 @@ export const listExamSchedules = async (schoolId, examId) => {
      ORDER BY g.level_order NULLS LAST, c.name, sub.name`,
     [schoolId, examId]
   );
+  if (teacherUserId) {
+    return filterSchedulesForTeacher(schoolId, teacherUserId, result.rows);
+  }
   return result.rows;
 };
 
@@ -410,7 +436,10 @@ export const removeExamSchedule = async (schoolId, scheduleId, actorId) => {
 
 // ─── Mark entry & grade entries ──────────────────────────────────────────────
 
-export const getMarkEntrySheet = async (schoolId, examId, scheduleId) => {
+export const getMarkEntrySheet = async (schoolId, examId, scheduleId, { teacherUserId } = {}) => {
+  if (teacherUserId) {
+    await assertTeacherScheduleAccess(schoolId, teacherUserId, examId, scheduleId);
+  }
   const sched = await query(
     `SELECT esch.*, e.term_id, e.max_score AS exam_max, e.status,
             t.academic_year_id, c.section_id, c.name AS class_name, sub.name AS subject_name,
@@ -490,11 +519,14 @@ export const getMarkEntrySheet = async (schoolId, examId, scheduleId) => {
   };
 };
 
-export const submitMarks = async (schoolId, examId, scheduleId, payload, actorId) => {
+export const submitMarks = async (schoolId, examId, scheduleId, payload, actorId, { teacherUserId } = {}) => {
+  if (teacherUserId) {
+    await assertTeacherScheduleAccess(schoolId, teacherUserId, examId, scheduleId);
+  }
   const { results } = payload;
   if (!results?.length) throw new AppError('No results to save.', 400, ERROR_CODES.VALIDATION_ERROR);
 
-  const sheet = await getMarkEntrySheet(schoolId, examId, scheduleId);
+  const sheet = await getMarkEntrySheet(schoolId, examId, scheduleId, { teacherUserId });
   const { schedule } = sheet;
   const maxScore = Math.round(Number(sheet.max_score ?? schedule.max_score ?? 100));
   const passScore = Math.round(Number(schedule.pass_score ?? maxScore * 0.5));

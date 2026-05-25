@@ -209,11 +209,13 @@ export const listInvoices = catchAsync(async (req, res) => {
        WHERE school_id = $1 AND status = 'succeeded'
        GROUP BY invoice_id
      )
-     SELECT i.id, i.student_id, i.amount, i.due_date, i.status, i.created_at,
+     SELECT i.id, i.student_id, i.amount, i.subtotal, i.discount_amount,
+            i.academic_year, i.term, i.due_date, i.status, i.created_at,
             s.first_name, s.last_name, s.admission_number,
             fs.name AS fee_structure_name,
-            COALESCE(pt.paid_amount, 0)::numeric(10,2) AS paid_amount,
-            (i.amount - COALESCE(pt.paid_amount, 0))::numeric(10,2) AS balance,
+            COALESCE(i.total_paid, pt.paid_amount, 0)::numeric(12,2) AS total_paid,
+            COALESCE(pt.paid_amount, 0)::numeric(12,2) AS paid_amount,
+            (i.amount - COALESCE(i.total_paid, pt.paid_amount, 0))::numeric(12,2) AS balance,
             COALESCE(
               json_agg(
                 json_build_object('id', ii.id, 'name', ii.name, 'amount', ii.amount)
@@ -227,7 +229,8 @@ export const listInvoices = catchAsync(async (req, res) => {
      LEFT JOIN finance.invoiceitems ii ON ii.invoice_id = i.id
      LEFT JOIN payment_totals pt ON pt.invoice_id = i.id
      WHERE i.school_id = $1 AND ($2::text IS NULL OR i.status = $2)
-     GROUP BY i.id, s.id, fs.name, pt.paid_amount
+     GROUP BY i.id, s.id, fs.name, pt.paid_amount, i.subtotal, i.discount_amount,
+              i.academic_year, i.term, i.total_paid
      ORDER BY i.created_at DESC
      LIMIT 200`,
     [schoolId, status]

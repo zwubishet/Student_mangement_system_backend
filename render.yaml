@@ -4,7 +4,7 @@ services:
   - type: web
     name: sms-api
     runtime: node
-    rootDir: Student_mangement_system_backend
+    rootDir: .
     buildCommand: npm install
     startCommand: npm start
     # Or in dashboard: Start Command = npm start  (not node server.js alone)

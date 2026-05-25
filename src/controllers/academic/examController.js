@@ -3,17 +3,25 @@ import { sendSuccess, sendPaginated } from '../../utils/errors.js';
 import * as examService from '../../services/examService.js';
 import * as grading from '../../services/examGradingService.js';
 
+const staffCtx = (req) => (
+  req.tenant.role === 'TEACHER' ? { teacherUserId: req.tenant.userId } : {}
+);
+
 export const getOverview = catchAsync(async (req, res) => {
   sendSuccess(res, await examService.getExamOverview(req.tenant.schoolId));
 });
 
 export const list = catchAsync(async (req, res) => {
-  const { rows, total, page, limit } = await examService.listExams(req.tenant.schoolId, req.query);
+  const { rows, total, page, limit } = await examService.listExams(
+    req.tenant.schoolId,
+    req.query,
+    staffCtx(req)
+  );
   sendPaginated(res, rows, total, page, limit);
 });
 
 export const getOne = catchAsync(async (req, res) => {
-  sendSuccess(res, await examService.getExamById(req.tenant.schoolId, req.params.id));
+  sendSuccess(res, await examService.getExamById(req.tenant.schoolId, req.params.id, staffCtx(req)));
 });
 
 export const create = catchAsync(async (req, res) => {
@@ -31,7 +39,7 @@ export const remove = catchAsync(async (req, res) => {
 });
 
 export const listSchedules = catchAsync(async (req, res) => {
-  sendSuccess(res, await examService.listExamSchedules(req.tenant.schoolId, req.params.id));
+  sendSuccess(res, await examService.listExamSchedules(req.tenant.schoolId, req.params.id, staffCtx(req)));
 });
 
 export const addSchedule = catchAsync(async (req, res) => {
@@ -47,11 +55,23 @@ export const deleteSchedule = catchAsync(async (req, res) => {
 });
 
 export const getMarkSheet = catchAsync(async (req, res) => {
-  sendSuccess(res, await examService.getMarkEntrySheet(req.tenant.schoolId, req.params.id, req.params.scheduleId));
+  sendSuccess(res, await examService.getMarkEntrySheet(
+    req.tenant.schoolId,
+    req.params.id,
+    req.params.scheduleId,
+    staffCtx(req)
+  ));
 });
 
 export const submitMarks = catchAsync(async (req, res) => {
-  sendSuccess(res, await examService.submitMarks(req.tenant.schoolId, req.params.id, req.params.scheduleId, req.body, req.tenant.userId));
+  sendSuccess(res, await examService.submitMarks(
+    req.tenant.schoolId,
+    req.params.id,
+    req.params.scheduleId,
+    req.body,
+    req.tenant.userId,
+    staffCtx(req)
+  ));
 });
 
 export const verifyMarks = catchAsync(async (req, res) => {
@@ -59,6 +79,9 @@ export const verifyMarks = catchAsync(async (req, res) => {
 });
 
 export const getResults = catchAsync(async (req, res) => {
+  if (req.tenant.role === 'TEACHER') {
+    await examService.getExamById(req.tenant.schoolId, req.params.id, staffCtx(req));
+  }
   const { rows, total, page, limit } = await examService.getExamResults(req.tenant.schoolId, req.params.id, req.query);
   sendPaginated(res, rows, total, page, limit);
 });

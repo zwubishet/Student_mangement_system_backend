@@ -26,6 +26,7 @@ fi
 # channel_binding breaks some clients; sslmode=require is enough for Neon
 NEON_URL="${NEON_URL//&channel_binding=require/}"
 NEON_URL="${NEON_URL//channel_binding=require&/}"
+NEON_URL="${NEON_URL//-pooler/}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Error: docker is required."

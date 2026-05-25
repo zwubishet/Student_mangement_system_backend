@@ -93,6 +93,52 @@ export const postSyncMandatorySubscriptions = catchAsync(async (req, res) => {
   sendSuccess(res, data, 201);
 });
 
+export const getBillingSetup = catchAsync(async (req, res) => {
+  const academicYear = req.query.academic_year;
+  if (!academicYear) throw new AppError('academic_year is required', 400);
+  const data = await studentFeeService.getBillingSetupStatus(req.tenant.schoolId, academicYear);
+  sendSuccess(res, data);
+});
+
+export const getPreviewTermInvoices = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    academic_year: Joi.string().trim().max(9).required(),
+    term: Joi.number().integer().min(1).max(3).allow(null),
+    grade_id: Joi.string().uuid().allow(null),
+  }), req.query);
+  const data = await studentFeeService.previewTermInvoices(req.tenant.schoolId, input);
+  sendSuccess(res, data);
+});
+
+export const postRepairTermBilling = catchAsync(async (req, res) => {
+  const data = await studentFeeService.repairTermBillingCategories(req.tenant.schoolId);
+  sendSuccess(res, data);
+});
+
+export const getStudentBillingRoster = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    academic_year: Joi.string().trim().max(9).required(),
+    term: Joi.number().integer().min(1).max(3).allow(null),
+    grade_id: Joi.string().uuid().allow(null),
+  }), req.query);
+  const data = await studentFeeService.listStudentBillingRoster(req.tenant.schoolId, input);
+  sendSuccess(res, data);
+});
+
+export const postBootstrapBilling = catchAsync(async (req, res) => {
+  const input = validate(Joi.object({
+    academic_year: Joi.string().trim().max(9).required(),
+    term: Joi.number().integer().min(1).max(3).default(1),
+  }), req.body);
+  const data = await studentFeeService.bootstrapSchoolFeeBilling(
+    req.tenant.schoolId,
+    input.academic_year,
+    req.tenant.userId,
+    { term: input.term }
+  );
+  sendSuccess(res, data, 201);
+});
+
 export const getSchedules = catchAsync(async (req, res) => {
   const data = await financeService.listFeeSchedules(req.tenant.schoolId, {
     academicYear: req.query.academic_year,
@@ -206,24 +252,64 @@ export const getPlatformBilling = catchAsync(async (req, res) => {
   sendSuccess(res, data);
 });
 
-export const postChapaWebhook = catchAsync(async (req, res) => {
-  res.status(200).json({ received: true });
+const handleChapaSettlement = async (req) => {
+  const body = req.body?.data || req.body || req.query || {};
+  const txRef = body.tx_ref || body.trx_ref || body.reference || req.query?.tx_ref || req.query?.trx_ref;
+  if (!txRef) return { skipped: true, reason: 'no_tx_ref' };
 
-  const body = req.body?.data || req.body;
-  const txRef = body.tx_ref || body.reference;
-  const status = body.status;
-  const amount = body.amount;
-  const invoiceId = body.meta?.invoice_id || body.metadata?.invoice_id;
+  const { verifyTransaction, extractVerifiedPayment, verifyWebhookSignature, isChapaConfigured } =
+    await import('../../services/finance/chapaService.js');
 
-  if (!txRef) return;
+  if (req.method === 'POST' && isChapaConfigured() && !verifyWebhookSignature(req)) {
+    return { skipped: true, reason: 'invalid_signature' };
+  }
 
-  await financeService.processChapaWebhook({
+  let status = body.status;
+  let amount = body.amount;
+  let invoiceId = body.meta?.invoice_id || body.metadata?.invoice_id;
+  let metadata = body.meta || body.metadata;
+
+  if (isChapaConfigured()) {
+    try {
+      const verified = extractVerifiedPayment(await verifyTransaction(txRef));
+      if (verified.ok) {
+        status = 'success';
+        amount = verified.amount || amount;
+        invoiceId = invoiceId || verified.meta?.invoice_id;
+        metadata = { ...metadata, ...verified.meta };
+      } else if (!status) {
+        status = verified.status;
+      }
+    } catch {
+      /* fall back to callback payload when verify is temporarily unavailable */
+    }
+  }
+
+  return financeService.settleChapaPayment({
     txRef,
     amount,
     status,
     invoiceId,
-    metadata: body.meta || body.metadata,
+    metadata,
   });
+};
+
+export const postChapaWebhook = catchAsync(async (req, res) => {
+  res.status(200).json({ received: true });
+  try {
+    await handleChapaSettlement(req);
+  } catch (err) {
+    console.error('[chapa webhook]', err.message);
+  }
+});
+
+export const getChapaCallback = catchAsync(async (req, res) => {
+  try {
+    const result = await handleChapaSettlement(req);
+    res.status(200).json({ received: true, ...result });
+  } catch (err) {
+    res.status(200).json({ received: true, error: err.message });
+  }
 });
 
 export const capturePaymentWithLedger = catchAsync(async (req, res, next) => {

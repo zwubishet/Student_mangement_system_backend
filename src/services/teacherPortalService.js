@@ -4,6 +4,7 @@ import { ATTENDANCE_TABLE } from '../utils/attendanceTable.js';
 import * as examService from './examService.js';
 import * as markReview from './grading/markReviewService.js';
 import * as teacherService from './teacherService.js';
+import { assertTeacherScheduleAccess as assertTeacherScheduleAccessShared } from './grading/examAccessService.js';
 
 const PAYROLL_KEYS = new Set([
   'bank_name', 'bank_account_number', 'bank_branch', 'tax_identification_number',
@@ -32,20 +33,8 @@ export const assertTeacherSectionAccess = async (teacherUserId, sectionId) => {
   }
 };
 
-export const assertTeacherScheduleAccess = async (schoolId, teacherUserId, examId, scheduleId) => {
-  const check = await query(
-    `SELECT 1
-     FROM operations.exam_schedules esch
-     JOIN academic.classes c ON c.id = esch.class_id
-     JOIN academic.teacherassignments ta
-       ON ta.section_id = c.section_id AND ta.subject_id = esch.subject_id AND ta.teacher_id = $1
-     WHERE esch.id = $2 AND esch.exam_id = $3 AND esch.school_id = $4`,
-    [teacherUserId, scheduleId, examId, schoolId]
-  );
-  if (!check.rows[0]) {
-    throw new AppError('You are not assigned to mark this exam schedule.', 403, ERROR_CODES.INVALID_OPERATION);
-  }
-};
+export const assertTeacherScheduleAccess = (schoolId, teacherUserId, examId, scheduleId) =>
+  assertTeacherScheduleAccessShared(schoolId, teacherUserId, examId, scheduleId);
 
 const assignmentBaseSql = `
   FROM academic.teacherassignments ta
