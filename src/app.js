@@ -6,6 +6,7 @@ import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import { AppError } from './utils/errors.js';
 import mainRouter from './routes/index.js';
 import { restrictBlacklisted } from './middlewares/authMiddleware.js';
+import { requestLogger } from './middlewares/requestLogger.js';
 import { resolveCorsOptions } from './utils/corsOrigins.js';
 
 const required = ['DATABASE_URL', 'ACCESS_TOKEN_SECRET', 'ACTION_SECRET'];
@@ -30,7 +31,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
-app.use('/api/v1', restrictBlacklisted, mainRouter);
+app.use('/api/v1', restrictBlacklisted, requestLogger, mainRouter);
 
 /** Deploy sanity check — hit /api/v1/meta to confirm lesson-plans & resources are live */
 app.get('/api/v1/meta', (_req, res) => {

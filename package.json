@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
     "start": "node src/server.js",
-    "test": "jest",
+    "test": "node --test tests/gradeEngine.test.js tests/errors.test.js tests/gradingPortalPolicy.test.js tests/requireRole.test.js",
+    "test:watch": "node --test --watch tests/gradeEngine.test.js tests/errors.test.js tests/gradingPortalPolicy.test.js tests/requireRole.test.js",
+    "audit:tenant": "bash scripts/audit-tenant-queries.sh",
     "up": "bash scripts/sms-dev.sh up",
     "down": "bash scripts/sms-dev.sh down",
     "down:v": "bash scripts/sms-dev.sh down-v",
@@ -35,7 +37,6 @@
   },
   "dependencies": {
     "@apollo/client": "^3.14.0",
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "cross-fetch": "^4.1.0",

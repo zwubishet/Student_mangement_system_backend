@@ -4,14 +4,22 @@ import { config } from './config/index.js';
 const port = config.port;
 
 const server = app.listen(port, () => {
-  console.log(`🚀 SMS SaaS Backend running on port ${port} in ${config.env} mode`);
+  console.log(`SMS API listening on port ${port} (${config.env || 'development'})`);
 });
 
-// Handle unhandled rejections (e.g., DB connection issues)
-process.on('unhandledRejection', (err) => {
-  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.log(err.name, err.message);
+const shutdown = (signal) => {
+  console.log(`${signal} received — closing HTTP server`);
   server.close(() => {
-    process.exit(1);
+    console.log('HTTP server closed');
+    process.exit(0);
   });
+  setTimeout(() => process.exit(1), 10000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION', err?.name, err?.message);
+  shutdown('unhandledRejection');
 });

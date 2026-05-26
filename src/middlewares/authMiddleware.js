@@ -4,6 +4,9 @@ import AppError from '../utils/appError.js';
 import catchAsync from '../utils/catchAsync.js';
 import { query } from '../config/db.js';
 import { PLATFORM_SCHOOL_ID } from '../constants/platform.js';
+import { requireRole } from './roleGuards.js';
+
+export { requireRole };
 
 export const restrictBlacklisted = catchAsync(async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -157,17 +160,6 @@ export const requireTenant = catchAsync(async (req, res, next) => {
 
   next();
 });
-
-export const requireRole = (...roles) => (req, res, next) => {
-  if (req.tenant?.isPlatformManage) {
-    return next();
-  }
-  const userRoles = req.tenant?.roles || [];
-  if (!roles.some((role) => userRoles.includes(role))) {
-    return next(new AppError('You do not have access to this resource.', 403));
-  }
-  next();
-};
 
 export const requirePermission = (...permissions) => catchAsync(async (req, res, next) => {
   const tenant = req.tenant;

@@ -1,94 +1,70 @@
-# 🎓 Student Management System (SMS) – High-Scale Backend
+# School Management System — Backend API
 
-A robust, multi-tenant school management system designed for high-scale academic environments. This backend serves as the "source of truth" for students, teachers, and school directors, utilizing a modern GraphQL-first architecture.
+Multi-tenant school SaaS backend: **PostgreSQL** (source of truth), **Express** (REST + Hasura Actions), **Hasura** (GraphQL + permissions), **Redis** (JWT logout blacklist).
 
----
+> **Stack note:** This project uses the native `pg` driver and Hasura SQL migrations.
 
-## 🚀 The Modern Stack
+## Features
 
-* **Hasura GraphQL Engine** – High-performance GraphQL Gateway & Real-time API.
-* **Node.js & Express.js** – Dedicated Business Logic layer (Hasura Actions & Webhooks).
-* **PostgreSQL** – Relational database with a multi-schema design (`identity`, `tenancy`, `academic`).
-* **Redis** – High-speed session management and JWT blacklisting (Logout).
-* **JWT (JSON Web Tokens)** – Custom Hasura-compatible claims for granular Role-Based Access Control (RBAC).
-* **Docker & Docker Compose** – Full-stack container orchestration.
-* **Native PG Driver (`pg`)** – High-performance SQL control for complex transactions and bulk operations.
+- Multi-tenant schools (`tenancy.schools`) with JWT claims `x-hasura-school-id`
+- Academic catalog: years, terms, grades, sections, classes, subjects, timetable
+- Students & teachers with enrollments and assignments
+- Attendance, exams, grading workflow (draft → submit → verify → lock → publish)
+- Finance: invoices, payments (Chapa for parents)
+- Portals: `/student-portal`, `/parent-portal`, `/teacher-portal`
+- Resource library, lesson planning, platform super-admin
 
----
+## Documentation
 
-## 🏗 High-Scale Architecture
+| Doc | Purpose |
+|-----|---------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
+| [SECURITY.md](docs/SECURITY.md) | Auth, tenancy, secrets |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker, Neon, Hasura Cloud |
+| [DATABASE.md](docs/DATABASE.md) | Schema overview |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | REST route index |
+| [BUYER_DUE_DILIGENCE.md](docs/BUYER_DUE_DILIGENCE.md) | Sale / audit checklist |
+| [PUBLIC_REVIEW.md](docs/PUBLIC_REVIEW.md) | Pre-publish checklist |
+| [GRADING_SYSTEM.md](docs/GRADING_SYSTEM.md) | Exams & marks |
+| [STUDENT_MOBILE_APP.md](docs/STUDENT_MOBILE_APP.md) | Mobile integration |
 
-This project has moved from a monolith to a **Microservices-ready architecture**:
+## Quick start
 
-1.  **Isolation:** Every request is filtered through Hasura using a JWT containing `x-hasura-school-id`.
-2.  **Stateless Logic:** Express handles complex "Actions" (like bulk creation) by pulling security context directly from Hasura session variables.
-3.  **Database Design:**
-    * `identity`: Manages Users, Roles, and Auth.
-    * `tenancy`: Manages Schools and Subscription status.
-    * `academic`: Manages Years, Terms, Grades, Sections, Classes, Teachers, and Subjects.
-
-
-
----
-
-## 🔐 Implemented Hasura Actions
-
-| Action | Logic Type | Description |
-| :--- | :--- | :--- |
-| `loginAction` | Authentication | Authenticates user & returns Hasura-compatible JWT. |
-| `logoutAction` | Redis Security | Instant token invalidation via Redis Blacklist (TTL). |
-| `createAcademicYearAction`| Validation | Creates school years with strict date-range checks. |
-| `createGradeWithSections` | Transactional | Atomic creation of a Grade and all its Sections. |
-| `createClassesBulkAction` | Idempotent | Bulk-activates sections for the year using `ON CONFLICT`. |
-| `createTeacherAction` | Identity Link | Atomic creation of Auth User + Teacher Profile. |
-| `assignTeacherAction` | Multi-Tenant | Links Teacher/Subject/Section with cross-school security. |
-
----
-
-## ⚙️ Getting Started
-
-### 1. Environment Configuration
-Create a `.env` file in the root directory:
-```env
-ACTION_SECRET=your_webhook_secret
-HASURA_GRAPHQL_ADMIN_SECRET=admin_secret
-JWT_SECRET=your_jwt_signing_key
-REDIS_URL=redis://redis:6379
-DATABASE_URL=postgres://user:pass@postgres:5432/sms_db
-```
-
-### 2. Launch the Stack
 ```bash
-docker-compose up --build
-```
-* **Express Webhooks:** `http://localhost:3003`
-* **Hasura Console:** `http://localhost:8082`
-
-### 3. Apply Metadata & Migrations
-```bash
-cd hasura
-hasura migrate apply
-hasura metadata apply
+cp .env.example .env
+./scripts/sms-dev.sh up
+./scripts/sms-dev.sh migrate-psql
+./scripts/sms-dev.sh seed
+npm run dev
 ```
 
----
+| Service | URL |
+|---------|-----|
+| REST API | http://localhost:3003/api/v1 |
+| Health | http://localhost:3003/health |
+| Hasura console | http://localhost:8082 |
 
-## 🛠 Project Status & Roadmap
+## Scripts
 
-- [x] **Phase 1: Security** (JWT, Redis Logout, Action Protection)
-- [x] **Phase 2: Academic Infrastructure** (Multi-tenant Years, Grades, Sections)
-- [x] **Phase 3: Staffing** (Teacher Creation, Subject Assignment)
-- [ ] **Phase 4: Students** (Bulk Enrollment, Student Profiles) 🔄 *Current Focus*
-- [ ] **Phase 5: Academic Records** (Attendance, Grading, Exams) 📅 *Next Up*
-- [ ] **Phase 6: Finances** (Fee Management & Invoicing) 🚀 *Future*
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | API with nodemon |
+| `npm test` | Unit tests (Node test runner) |
+| `npm run audit:tenant` | Heuristic SQL tenancy audit |
+| `./scripts/sms-dev.sh migrate-psql` | Apply migrations (local Docker Postgres) |
+| `bash scripts/migrate-neon-psql.sh` | Incremental migrations on Neon |
+| `bash scripts/bootstrap-neon-migrations.sh` | Mark existing Neon schema as migrated (one-time) |
 
----
+## Environment
 
-## 👨‍💻 Author
+Copy [`.env.example`](.env.example). **Required:** `DATABASE_URL`, `ACCESS_TOKEN_SECRET`, `ACTION_SECRET`.
 
-**Wubishet Wudu**
-💼 Full-stack Developer (Flutter + Node.js + Hasura)
-📬 [wubishetwudu1624@gmail.com](mailto:wubishetwudu1624@gmail.com)
-```
+Do not use default secrets (`supersecret`) in production.
 
----
+## Project status
+
+Production-hardening in progress: CI, expanded tests, buyer documentation. Suitable as a **strong foundation** for school SaaS; complete security audit and integration tests before premium commercial sale.
+
+## Author
+
+Wubishet Wudu — [wubishetwudu1624@gmail.com](mailto:wubishetwudu1624@gmail.com)

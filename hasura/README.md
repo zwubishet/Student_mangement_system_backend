@@ -29,5 +29,6 @@ hasura migrate apply --all-databases
 ```
 
 Notes:
-- For initial migration capture, point Hasura to the same Postgres DB used by Prisma and run `--from-server`.
+- Schema is managed via **Hasura SQL migrations** in `hasura/migrations/` (not Prisma).
+- For incremental deploys to Neon, use `scripts/migrate-neon-psql.sh` from the backend root.
 - Keep backups of your DB before making destructive schema changes.

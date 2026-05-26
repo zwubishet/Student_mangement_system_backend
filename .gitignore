@@ -1,5 +1,21 @@
-node_modules
-# Keep environment variables out of version control
+node_modules/
 .env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage/
+.nyc_output/
 
-/generated/prisma
+# Local uploads / storage (use S3 or object storage in production)
+uploads/
+storage/
+tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Hasura CLI artifacts (keep migrations + metadata in repo)
+hasura/hasura/.hasura/
