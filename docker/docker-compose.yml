@@ -1,0 +1,115 @@
+# Local / staging stack. Configure via repo-root .env (see .env.example).
+# Production: use managed Postgres/Redis, pin secrets, set HASURA_GRAPHQL_ENABLE_CONSOLE=false.
+
+name: sms
+
+networks:
+  sms_internal:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    networks: [sms_internal]
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sms_user} -d ${POSTGRES_DB:-sms_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sms_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-sms_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    networks: [sms_internal]
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    networks: [sms_internal]
+    ports:
+      - "${API_PUBLISH_PORT:-3003}:3003"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: "3003"
+      DATABASE_URL: postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
+      REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-dev_access_secret}
+      ACTION_SECRET: ${ACTION_SECRET:-supersecret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - ../api:/app
+      - app_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  hasura:
+    image: hasura/graphql-engine:v2.26.0
+    networks: [sms_internal]
+    ports:
+      - "${HASURA_PUBLISH_PORT:-8082}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_pass}@postgres:5432/${POSTGRES_DB:-sms_db}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-supersecret}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE:-true}
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
+      HASURA_GRAPHQL_JWT_SECRET: >
+        {
+          "type": "HS256",
+          "key": "${ACCESS_TOKEN_SECRET:-dev_access_secret}"
+        }
+      HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL: ${HASURA_ACTION_BASE_URL:-http://app:3003}
+      ACTION_SECRET: ${ACTION_SECRET:-supersecret}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redis_data:
+  app_node_modules:

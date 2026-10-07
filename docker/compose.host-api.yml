@@ -1,0 +1,14 @@
+# Override when the API runs on the host (npm run dev) but Hasura stays in Docker.
+# Usage:
+#   docker compose -f docker/docker-compose.yml -f docker/compose.host-api.yml up -d postgres redis hasura
+
+services:
+  hasura:
+    depends_on:
+      app:
+        required: false
+    environment:
+      HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL: ${HASURA_ACTION_BASE_URL:-http://host.docker.internal:3003}
+
+  app:
+    profiles: ["docker-api"]

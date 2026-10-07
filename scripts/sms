@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# SMS backend CLI — Docker stack, Hasura, database seeds, QA helpers.
+set -euo pipefail
+
+SMS_CMD_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+run() {
+  bash "$SMS_CMD_DIR/$1" "${@:2}"
+}
+
+usage() {
+  cat <<'EOF'
+SMS backend CLI
+
+Usage:
+  ./scripts/sms <command> [options]
+
+Stack (Docker)
+  stack up [--infra-only]     Start postgres, redis, hasura [, app]
+  stack down [-v|--volumes]   Stop containers ( -v wipes volumes )
+  stack ps                    Container status
+  stack logs [service]        Follow logs (default: all services)
+  stack restart [service]     Restart one or all services
+  stack console-ready         Infra up + Hasura migrate + metadata
+
+Database (Hasura)
+  db setup                    Stack up (if needed) + migrate + metadata
+  db migrate                  Apply SQL migrations + metadata
+  db baseline                 Baseline migrations on existing DB
+  db status                   Migration status + core schemas
+  db seed                     Full demo seed bundle
+  db seed-fees                Fee billing seed only
+  db reset                    Wipe volumes, up, migrate, seed
+
+Seeds (single module)
+  seed                        Same as db seed
+  seed --list                 Show seed names
+  seed <name>                 e.g. school, super, demo, grading, fees, provider, finance
+
+Hasura
+  hasura console              Hasura CLI console (engine must be running)
+  hasura verify-webhooks      Test Hasura → API action base URL (/health)
+
+Quality / dev
+  qa smoke                    Platform API smoke test
+  qa audit-tenant             Heuristic tenant-scope SQL audit
+  dev chapa                   Apply Chapa migration helper (local)
+
+Shortcuts (npm-friendly)
+  up | down | down-v | setup | migrate | seed | reset | ps | logs | restart
+
+npm examples:
+  npm run hasura:up           stack console-ready
+  npm run stack:up            stack up
+  npm run db:migrate          db migrate
+  npm run db:seed             db seed
+  npm run console             hasura console
+
+EOF
+}
+
+seed_list() {
+  cat <<'EOF'
+Available seeds:
+  school            seed-school.mjs
+  super             seed-super-admin.mjs
+  provider          seed-provider-admins.mjs
+  demo              seed-demo-academy.mjs
+  grading           seed-grading-demo.mjs
+  finance           seed-finance-officer.mjs
+  fees              seed-fee-billing.mjs
+EOF
+}
+
+main() {
+  [[ $# -gt 0 ]] || { usage; exit 0; }
+
+  case "$1" in
+    help | -h | --help) usage; exit 0 ;;
+  esac
+
+  source "$SMS_CMD_DIR/lib/init.sh"
+
+  case "$1" in
+    stack)
+      case "${2:-}" in
+        up) run stack/up.sh "${@:3}" ;;
+        down) run stack/down.sh "${@:3}" ;;
+        ps) run stack/ps.sh ;;
+        logs) run stack/logs.sh "${3:-all}" ;;
+        restart) run stack/restart.sh "${3:-}" ;;
+        console-ready) run stack/console-ready.sh ;;
+        *) sms_die "Unknown stack command (try: ./scripts/sms stack up)" ;;
+      esac
+      ;;
+    db)
+      case "${2:-}" in
+        setup) run db/setup.sh ;;
+        migrate) run db/migrate.sh ;;
+        baseline) run db/baseline.sh ;;
+        status) run db/status.sh ;;
+        seed) run db/seed.sh ;;
+        seed-fees) run db/seed-fees.sh ;;
+        reset) run db/reset.sh ;;
+        *) sms_die "Unknown db command (try: ./scripts/sms db migrate)" ;;
+      esac
+      ;;
+    seed)
+      case "${2:-}" in
+        --list | -l | list) seed_list; exit 0 ;;
+        "") run db/seed.sh ;;
+        fees | fee-billing) run db/seed-fees.sh ;;
+        *) run db/seed-one.sh "${2}" ;;
+      esac
+      ;;
+    hasura)
+      case "${2:-}" in
+        console) run hasura/console-cli.sh ;;
+        verify-webhooks) run hasura/verify-webhooks.sh ;;
+        *) sms_die "Unknown hasura command (try: ./scripts/sms hasura verify-webhooks)" ;;
+      esac
+      ;;
+    qa)
+      case "${2:-}" in
+        smoke) run qa/smoke-platform.sh ;;
+        audit-tenant) run qa/audit-tenant.sh ;;
+        *) sms_die "Unknown qa command (try: ./scripts/sms qa smoke)" ;;
+      esac
+      ;;
+    dev)
+      case "${2:-}" in
+        chapa) run dev/setup-chapa.sh ;;
+        *) sms_die "Unknown dev command (try: ./scripts/sms dev chapa)" ;;
+      esac
+      ;;
+    up) run stack/up.sh "${@:2}" ;;
+    down) run stack/down.sh "${@:2}" ;;
+    down-v | down:v) run stack/down.sh -v ;;
+    setup) run db/setup.sh ;;
+    migrate) run db/migrate.sh ;;
+    reset) run db/reset.sh ;;
+    ps) run stack/ps.sh ;;
+    logs) run stack/logs.sh "${2:-all}" ;;
+    restart) run stack/restart.sh "${2:-}" ;;
+    chapa) run dev/setup-chapa.sh ;;
+    *)
+      sms_die "Unknown command: $1 (run: ./scripts/sms help)"
+      ;;
+  esac
+}
+
+main "$@"

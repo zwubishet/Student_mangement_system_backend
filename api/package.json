@@ -1,0 +1,36 @@
+{
+  "name": "school-management-api",
+  "version": "1.0.0",
+  "description": "School management Express API",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "dev": "nodemon --legacy-watch --watch ./src/server.js --watch src --ext js,mjs,json ./src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test tests/authSession.test.js tests/validateEnv.test.js tests/gradeEngine.test.js tests/errors.test.js tests/gradingPortalPolicy.test.js tests/requireRole.test.js tests/platformRoles.test.js",
+    "test:watch": "node --test --watch tests/gradeEngine.test.js tests/errors.test.js tests/gradingPortalPolicy.test.js tests/requireRole.test.js tests/platformRoles.test.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.14.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "cross-fetch": "^4.1.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.5.1",
+    "graphql": "^16.13.0",
+    "helmet": "^7.2.0",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.20.0",
+    "redis": "^5.11.0",
+    "uuid": "^10.0.0"
+  }
+}

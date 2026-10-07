@@ -1,66 +1,264 @@
 actions:
-  - name: loginUser
+  - name: AssignTeacherAction
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/login
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/assign-teacher'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: logoutUser
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CalculateTermResults
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/logout
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/calculate-term-results'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: manageSchool
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateAcademicYearAction
     definition:
       kind: synchronous
-      handler: http://app:3003/school/action/manageSchool
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/years'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: super_admin
-  - name: manageUsers
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateAnnouncementAction
     definition:
       kind: synchronous
-      handler: http://app:3003/action/manageUsers
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/operations/announcements'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: director
-      - role: super_admin
-  - name: refreshToken
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateClassesBulkAction
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/refresh
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/classes-bulk'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: teacher
-      - role: student
-      - role: director
-      - role: super_admin
-  - name: registerUser
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateExamAction
     definition:
       kind: synchronous
-      handler: http://app:3003/auth/register
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/create-exam'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
     permissions:
-      - role: super_admin
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateGradeWithSectionsAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/grades-complex'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateScheduleSlot
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/operations/schedule-slots'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateSubjectAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/subjects/register-subject'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateTeacherAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/teachers/register-teacher'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: CreateTermAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/terms'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: EnrollStudentWithCheck
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/enroll-student-with-check'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: ExamSubjectsAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/add-exam-subjects'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: LoginAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/auth/login'
+      forward_client_headers: false
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: anonymous
+  - name: RegisterParentAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/register-parent'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: UpdateSchoolStatusAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/platform/actions/school-status'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+  - name: RegisterSchoolAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/auth/register-school'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+  - name: RegisterStudentEnrollment
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/students/register-enroll'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: SubmitExamResultsAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/academic/submit-exam-results'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: TEACHER
+      - role: SUPER_ADMIN
+      - role: SCHOOL_ADMIN
+  - name: logoutAction
+    definition:
+      kind: synchronous
+      handler: '{{HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL}}/api/v1/auth/logout'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: ACTION_SECRET
+    permissions:
+      - role: TEACHER
+      - role: SUPER_ADMIN
+      - role: STUDENT
+      - role: SCHOOL_ADMIN
+      - role: PARENT
 custom_types:
   enums: []
   input_objects:
-    - name: ManageUserInput
-    - name: RegisterUserInput
-    - name: LoginUserInput
-    - name: RefreshTokenInput
-    - name: LogoutUserInput
-    - name: ManageSchoolInput
+    - name: RegisterStudentInput
+    - name: RegisterSchoolInput
+    - name: LoginInput
+    - name: AcademicYearInput
+    - name: TermInput
+    - name: GradeWithSectionsInput
+    - name: ClassesBulkInput
+    - name: ClassSectionInput
+    - name: TeacherInput
+    - name: AssignTeacherInput
+    - name: ExamInput
+    - name: ExamSubjectInput
+    - name: ExamResultInput
+    - name: ParentInput
+    - name: ScheduleInput
+    - name: EnrollStudentInput
   objects:
-    - name: ManageUserResponse
-    - name: RegisterUserResponse
-    - name: LoginUserResponse
-    - name: UserInfo
-    - name: RefreshTokenResponse
-    - name: LogoutUserResponse
-    - name: ManageSchoolResponse
-    - name: SchoolInfo
+    - name: RegisterStudentOutput
+    - name: RegisterSchoolOutput
+    - name: LoginOutput
+    - name: LogoutOutput
+    - name: AcademicYearOutput
+    - name: TermOutput
+    - name: GradeWithSectionsOutput
+    - name: SectionOutput
+    - name: ClassesBulkOutput
+    - name: ClassOutput
+    - name: TeacherOutput
+    - name: SubjectOutput
+    - name: AssignTeacherOutput
+    - name: ExamOutput
+    - name: ExamSubjectOutput
+    - name: ExamResultsOutput
+    - name: ParentOutput
+    - name: AnnouncementOutput
+    - name: TermResultOutput
+    - name: ScheduleOutput
+    - name: EnrollmentResponse
   scalars: []
